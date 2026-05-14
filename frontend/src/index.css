@@ -91,13 +91,7 @@
     );
 
     /* pattern craft */
-    --gradient-purple: linear-gradient(
-      135deg,
-      hsl(262, 60%, 45%) 0%,
-      hsl(280, 70%, 50%) 40%,
-      hsl(300, 60%, 40%) 70%,
-      hsl(250, 80%, 35%) 100%
-    );
+    --gradient-purple: hsl(0, 0%, 93%);
 
     /* Shadows */
     --shadow-soft: 0 8px 32px -8px hsl(271 79% 47% / 0.15);
@@ -191,11 +185,11 @@
     );
 
     --gradient-purple: radial-gradient(
-      125% 125% at 50% 10%,
-      hsla(0, 0%, 0%, 1) 40%,
-      hsla(310, 96%, 11%, 0.5) 100%
+      ellipse 80% 60% at 50% 0%,
+      hsl(215, 60%, 18%) 0%,
+      hsl(220, 70%, 10%) 50%,
+      hsl(225, 80%, 6%) 100%
     );
-
     /* Dark shadows with glow */
     --shadow-soft: 0 8px 32px -8px hsl(280 100% 70% / 0.25);
     --shadow-glow: 0 0 40px hsl(var(--primary) / 0.4);
@@ -277,6 +271,88 @@
     background: var(--gradient-purple);
   }
 
+  /* Auth page background - responsive */
+  .auth-page-bg {
+    position: relative;
+    background: hsl(0, 0%, 93%);
+    background-attachment: fixed;
+    overflow: hidden;
+  }
+
+  /* Dải chéo trắng mờ cho light mode */
+  .auth-page-bg::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+      linear-gradient(135deg,
+        transparent 0%,
+        transparent 20%,
+        hsla(0, 0%, 100%, 0.6) 25%,
+        hsla(0, 0%, 100%, 0.7) 30%,
+        transparent 35%,
+        transparent 42%,
+        hsla(0, 0%, 100%, 0.4) 47%,
+        hsla(0, 0%, 100%, 0.5) 52%,
+        transparent 57%
+      ),
+      radial-gradient(ellipse 60% 80% at 20% 80%, hsla(0, 0%, 100%, 0.8) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 80% 20%, hsla(0, 0%, 98%, 0.5) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .auth-page-bg > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .dark .auth-page-bg {
+    position: relative;
+    background: hsl(222, 60%, 8%);
+    background-attachment: fixed;
+    overflow: hidden;
+  }
+
+  /* Dải sáng chéo góc giống ảnh */
+  .dark .auth-page-bg::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+      /* dải chéo trái - xanh navy mờ */
+      linear-gradient(135deg,
+        transparent 0%,
+        transparent 30%,
+        hsla(220, 70%, 25%, 0.5) 35%,
+        hsla(220, 70%, 30%, 0.4) 40%,
+        transparent 45%,
+        transparent 55%,
+        hsla(215, 65%, 22%, 0.4) 60%,
+        hsla(215, 65%, 28%, 0.3) 65%,
+        transparent 70%
+      ),
+      /* dải sáng xanh điện góc phải */
+      linear-gradient(135deg,
+        transparent 55%,
+        hsla(210, 100%, 55%, 0.15) 62%,
+        hsla(205, 100%, 60%, 0.25) 66%,
+        hsla(200, 100%, 65%, 0.35) 70%,
+        hsla(195, 100%, 70%, 0.5) 73%,
+        hsla(190, 100%, 75%, 0.3) 76%,
+        transparent 82%
+      ),
+      /* ánh sáng nền xanh navy */
+      radial-gradient(ellipse 80% 60% at 70% 60%, hsla(220, 80%, 20%, 0.8) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 50% at 20% 30%, hsla(225, 70%, 12%, 0.9) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .dark .auth-page-bg > * {
+    position: relative;
+    z-index: 1;
+  }
   /* Shadows */
   .shadow-soft {
     box-shadow: var(--shadow-soft);

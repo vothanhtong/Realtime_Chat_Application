@@ -8,8 +8,19 @@ interface IUserAvatarProps {
   className?: string;
 }
 
+// Nếu URL là relative path, thêm backend base URL vào
+const resolveAvatarUrl = (url?: string) => {
+  if (!url) return undefined;
+  if (url.startsWith("/uploads")) {
+    const base = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5001";
+    return `${base}${url}`;
+  }
+  return url;
+};
+
 const UserAvatar = ({ type, name, avatarUrl, className }: IUserAvatarProps) => {
-  const bgColor = !avatarUrl ? "bg-blue-500" : "";
+  const resolvedUrl = resolveAvatarUrl(avatarUrl);
+  const bgColor = !resolvedUrl ? "bg-blue-500" : "";
 
   if (!name) {
     name = "Moji";
@@ -25,7 +36,7 @@ const UserAvatar = ({ type, name, avatarUrl, className }: IUserAvatarProps) => {
       )}
     >
       <AvatarImage
-        src={avatarUrl}
+        src={resolvedUrl}
         alt={name}
       />
       <AvatarFallback className={`${bgColor} text-white font-semibold`}>

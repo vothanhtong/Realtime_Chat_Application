@@ -16,7 +16,6 @@ import fs from "fs";
 import { app, server } from "./socket/index.js";
 import { v2 as cloudinary } from "cloudinary";
 import helmet from "helmet";
-import mongoSanitize from "express-mongo-sanitize";
 import compression from "compression";
 import rateLimit from "express-rate-limit";
 
@@ -34,7 +33,7 @@ app.use(helmet({
 // Rate limiting cho tất cả requests
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 phút
-  max: 100, // giới hạn 100 requests mỗi IP
+  max: 1000, // giới hạn 1000 requests mỗi IP (tăng lên cho development)
   message: "Quá nhiều requests từ IP này, vui lòng thử lại sau 15 phút",
   standardHeaders: true,
   legacyHeaders: false,
@@ -43,7 +42,7 @@ const generalLimiter = rateLimit({
 // Rate limiting nghiêm ngặt hơn cho auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 phút
-  max: 5, // chỉ 5 lần đăng nhập/đăng ký
+  max: 50, // tăng lên 50 lần cho development
   message: "Quá nhiều lần đăng nhập/đăng ký, vui lòng thử lại sau 15 phút",
   skipSuccessfulRequests: true, // không đếm request thành công
 });
@@ -58,14 +57,12 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Sanitize data để chống NoSQL injection - Tạm thời comment vì conflict với Express 5
-// TODO: Chờ express-mongo-sanitize update hoặc dùng custom middleware
-// app.use(mongoSanitize({ replaceWith: '_' }));
-
 app.use(
   cors({
-    origin: process.env.CLIENT_URL?.split(","),
+    origin: process.env.CLIENT_URL?.split(",").map(url => url.trim()),
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
@@ -94,7 +91,7 @@ app.use("/api/messages", messageRoute);
 app.use("/api/conversations", conversationRoute);
 
 // Global error handler
-app.use((err, req, res, next) => {
+app.use((err, _req, res, _next) => {
   console.error("Unhandled error:", err);
   res.status(500).json({ message: "Lỗi hệ thống" });
 });

@@ -1,5 +1,6 @@
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
+import sharp from "sharp";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -23,7 +24,7 @@ const hasCloudinary = () =>
 export const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
     if (allowed.includes(file.mimetype)) {
       cb(null, true);
@@ -33,6 +34,22 @@ export const upload = multer({
   },
 });
 
+// Resize và optimize ảnh với sharp
+const processImage = async (buffer) => {
+  try {
+    return await sharp(buffer)
+      .resize(200, 200, {
+        fit: "cover",
+        position: "center",
+      })
+      .webp({ quality: 85 }) // Convert to WebP for better compression
+      .toBuffer();
+  } catch (error) {
+    console.error("Lỗi khi xử lý ảnh:", error);
+    throw error;
+  }
+};
+
 // Upload lên Cloudinary
 const uploadToCloudinary = (buffer, options = {}) => {
   return new Promise((resolve, reject) => {
@@ -40,7 +57,16 @@ const uploadToCloudinary = (buffer, options = {}) => {
       {
         folder: "chat_app/avatars",
         resource_type: "image",
-        transformation: [{ width: 300, height: 300, crop: "fill", gravity: "face" }],
+        format: "webp", // Force WebP format
+        transformation: [
+          { 
+            width: 200, 
+            height: 200, 
+            crop: "fill", 
+            gravity: "face",
+            quality: "auto:good",
+          }
+        ],
         ...options,
       },
       (error, result) => {
@@ -52,19 +78,27 @@ const uploadToCloudinary = (buffer, options = {}) => {
   });
 };
 
-// Lưu local
-const saveToLocal = (buffer, filename) => {
-  return new Promise((resolve, reject) => {
-    const filePath = path.join(UPLOADS_DIR, filename);
-    fs.writeFile(filePath, buffer, (err) => {
-      if (err) return reject(err);
-      resolve({
-        secure_url: `/uploads/avatars/${filename}`,
-        public_id: filename,
-        source: "local",
-      });
-    });
-  });
+// Lưu local với sharp optimization
+const saveToLocal = async (buffer, filename, req = null) => {
+  try {
+    // Process image trước khi lưu
+    const processedBuffer = await processImage(buffer);
+    const webpFilename = filename.replace(/\.(jpg|jpeg|png|gif)$/i, '.webp');
+    const filePath = path.join(UPLOADS_DIR, webpFilename);
+    
+    await fs.promises.writeFile(filePath, processedBuffer);
+
+    // Tạo full URL từ env hoặc fallback
+    const baseUrl = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 5001}`;
+    
+    return {
+      secure_url: `${baseUrl}/uploads/avatars/${webpFilename}`,
+      public_id: webpFilename,
+      source: "local",
+    };
+  } catch (error) {
+    throw error;
+  }
 };
 
 // Xóa file local cũ
@@ -98,7 +132,6 @@ export const uploadImage = async (buffer, options = {}) => {
 export const deleteImage = async (publicId) => {
   if (!publicId) return;
   if (hasCloudinary() && !publicId.includes(".")) {
-    // Cloudinary public_id không có extension
     try {
       await cloudinary.uploader.destroy(publicId);
     } catch (err) {
@@ -108,6 +141,3 @@ export const deleteImage = async (publicId) => {
     deleteLocalFile(publicId);
   }
 };
-
-// Legacy export để không break code cũ
-export const uploadImageFromBuffer = (buffer, options) => uploadImage(buffer, options);
