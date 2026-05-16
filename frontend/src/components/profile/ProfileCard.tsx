@@ -21,36 +21,33 @@ const ProfileCard = ({ user }: ProfileCardProps) => {
   const isOnline = onlineUsers.includes(user._id) ? true : false;
 
   return (
-    <Card className="overflow-hidden p-0 h-52 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
-      <CardContent className="mt-20 pb-8 flex flex-col sm:flex-row items-center sm:items-end gap-6">
-        <div className="relative">
+    <Card className="overflow-hidden p-0 bg-gradient-to-r from-sky-500 via-blue-500 to-blue-600">
+      <div className="h-24 sm:h-32" />
+      <CardContent className="px-4 pb-5 flex flex-col sm:flex-row items-center sm:items-end gap-3 sm:gap-6 -mt-10 sm:-mt-14">
+        <div className="relative shrink-0">
           <UserAvatar
             type="profile"
             name={user.displayName}
             avatarUrl={user.avatarUrl ?? undefined}
             className="ring-4 ring-white shadow-lg"
           />
-
           <AvatarUploader />
         </div>
 
-        {/* user info */}
-        <div className="text-center sm:text-left flex-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">
+        <div className="text-center sm:text-left flex-1 min-w-0 pb-1">
+          <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-white truncate">
             {user.displayName}
           </h1>
-
           {user.bio && (
-            <p className="text-white/70 text-sm mt-2 max-w-lg line-clamp-2">
+            <p className="text-white/70 text-xs sm:text-sm mt-1 max-w-lg line-clamp-2">
               {user.bio}
             </p>
           )}
         </div>
 
-        {/* status */}
         <Badge
           className={cn(
-            "flex items-center gap-1 capitalize",
+            "flex items-center gap-1 capitalize shrink-0 self-center sm:self-end mb-1",
             isOnline ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-700"
           )}
         >
@@ -60,8 +57,7 @@ const ProfileCard = ({ user }: ProfileCardProps) => {
               isOnline ? "bg-green-500 animate-pulse" : "bg-slate-500"
             )}
           />
-
-          {isOnline ? "online" : "offline"}
+          {isOnline ? "Trực tuyến" : "Ngoại tuyến"}
         </Badge>
       </CardContent>
     </Card>

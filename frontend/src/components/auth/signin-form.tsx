@@ -79,10 +79,10 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
               "text-2xl sm:text-3xl font-bold mb-1",
               isDark ? "text-white" : "text-slate-800"
             )}>
-              Welcome Back
+              Chào mừng trở lại
             </h1>
             <p className={cn("text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-              Sign in to your account
+              Đăng nhập vào tài khoản của bạn
             </p>
           </div>
           <button
@@ -131,8 +131,8 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
                 className={cn(
                   "h-11 rounded-xl border pr-11 transition-colors",
                   isDark
-                    ? "bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 focus:border-violet-500"
-                    : "bg-slate-50 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-violet-400",
+                    ? "bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 focus:border-sky-500"
+                    : "bg-sky-50/50 border-sky-200 text-slate-800 placeholder:text-slate-400 focus:border-sky-400",
                   "focus-visible:ring-0 focus-visible:ring-offset-0",
                   errors.password && "border-red-400"
                 )}
@@ -159,18 +159,18 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                className="size-4 rounded accent-violet-500"
+                className="size-4 rounded accent-sky-500"
                 {...register("rememberMe")}
               />
               <span className={cn("text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-                Remember me
+                Ghi nhớ đăng nhập
               </span>
             </label>
             <Link
               to="/forgot-password"
-              className="text-violet-500 text-sm hover:text-violet-400 transition-colors"
+              className="text-sky-500 text-sm hover:text-sky-400 transition-colors"
             >
-              Forgot password?
+              Quên mật khẩu?
             </Link>
           </div>
 
@@ -178,16 +178,16 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="w-full h-11 rounded-xl font-semibold text-white border-0 bg-gradient-to-r from-violet-600 to-purple-500 hover:from-violet-700 hover:to-purple-600 transition-all duration-200 disabled:opacity-60"
+            className="w-full h-11 rounded-xl font-semibold text-white border-0 bg-gradient-to-r from-sky-500 to-blue-500 hover:from-sky-600 hover:to-blue-600 transition-all duration-200 disabled:opacity-60"
           >
-            {isSubmitting ? "Đang đăng nhập..." : "Sign In"}
+            {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
           </Button>
 
           {/* Divider */}
           <div className="flex items-center gap-3">
             <div className={cn("flex-1 h-px", isDark ? "bg-slate-700" : "bg-slate-200")} />
             <span className={cn("text-xs", isDark ? "text-slate-500" : "text-slate-400")}>
-              or continue with
+              hoặc tiếp tục với
             </span>
             <div className={cn("flex-1 h-px", isDark ? "bg-slate-700" : "bg-slate-200")} />
           </div>
@@ -231,9 +231,9 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
 
           {/* Sign up link */}
           <p className={cn("text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-            Don't have an account?{" "}
-            <Link to="/signup" className="text-violet-500 hover:text-violet-400 font-medium transition-colors">
-              Sign up
+            Chưa có tài khoản?{" "}
+            <Link to="/signup" className="text-sky-500 hover:text-sky-400 font-medium transition-colors">
+              Đăng ký
             </Link>
           </p>
         </form>

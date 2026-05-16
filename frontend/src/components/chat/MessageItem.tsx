@@ -64,7 +64,7 @@ const MessageItem = ({
         {/* tin nhắn */}
         <div
           className={cn(
-            "max-w-xs lg:max-w-md space-y-1 flex flex-col",
+            "max-w-[75vw] sm:max-w-xs lg:max-w-md space-y-1 flex flex-col",
             message.isOwn ? "items-end" : "items-start"
           )}
         >

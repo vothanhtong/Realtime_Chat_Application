@@ -93,10 +93,10 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
               "text-2xl sm:text-3xl font-bold mb-1",
               isDark ? "text-white" : "text-slate-800"
             )}>
-              Create Account
+              Tạo tài khoản
             </h1>
             <p className={cn("text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-              Join us today, it's free!
+              Tham gia ngay, hoàn toàn miễn phí!
             </p>
           </div>
           <button
@@ -223,14 +223,14 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
             disabled={isSubmitting}
             className="w-full h-11 rounded-xl font-semibold text-white border-0 bg-gradient-to-r from-sky-500 to-blue-500 hover:from-sky-600 hover:to-blue-600 transition-all duration-200 disabled:opacity-60 mt-1"
           >
-            {isSubmitting ? "Đang tạo tài khoản..." : "Create Account"}
+            {isSubmitting ? "Đang tạo tài khoản..." : "Đăng ký"}
           </Button>
 
           {/* Divider */}
           <div className="flex items-center gap-3">
             <div className={cn("flex-1 h-px", isDark ? "bg-slate-700" : "bg-slate-200")} />
             <span className={cn("text-xs", isDark ? "text-slate-500" : "text-slate-400")}>
-              or continue with
+              hoặc tiếp tục với
             </span>
             <div className={cn("flex-1 h-px", isDark ? "bg-slate-700" : "bg-slate-200")} />
           </div>
@@ -274,9 +274,9 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
 
           {/* Sign in link */}
           <p className={cn("text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-            Already have an account?{" "}
+            Đã có tài khoản?{" "}
             <Link to="/signin" className="text-sky-500 hover:text-sky-400 font-medium transition-colors">
-              Sign in
+              Đăng nhập
             </Link>
           </p>
         </form>

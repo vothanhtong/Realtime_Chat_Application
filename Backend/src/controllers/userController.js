@@ -20,9 +20,15 @@ export const searchByUsername = async (req, res) => {
       return res.status(400).json({ message: "Cần cung cấp username để tìm kiếm" });
     }
 
+    const keyword = username.trim();
+
+    // Tìm chính xác theo username HOẶC tìm gần đúng theo displayName (case-insensitive)
     const user = await User.findOne({
-      username: username.toLowerCase().trim(),
-      _id: { $ne: req.user._id }, // không tìm chính mình
+      _id: { $ne: req.user._id },
+      $or: [
+        { username: keyword.toLowerCase() },
+        { displayName: { $regex: keyword, $options: "i" } },
+      ],
     }).select("_id username displayName avatarUrl");
 
     if (!user) {

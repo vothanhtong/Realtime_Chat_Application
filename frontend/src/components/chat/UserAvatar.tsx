@@ -15,6 +15,11 @@ const resolveAvatarUrl = (url?: string) => {
     const base = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5001";
     return `${base}${url}`;
   }
+  if (url.includes("/uploads/avatars/")) {
+    const base = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5001";
+    const filename = url.split("/uploads/avatars/").pop();
+    return `${base}/uploads/avatars/${filename}`;
+  }
   return url;
 };
 

@@ -79,20 +79,16 @@ const uploadToCloudinary = (buffer, options = {}) => {
 };
 
 // Lưu local với sharp optimization
-const saveToLocal = async (buffer, filename, req = null) => {
+const saveToLocal = async (buffer, filename) => {
   try {
-    // Process image trước khi lưu
     const processedBuffer = await processImage(buffer);
     const webpFilename = filename.replace(/\.(jpg|jpeg|png|gif)$/i, '.webp');
     const filePath = path.join(UPLOADS_DIR, webpFilename);
-    
     await fs.promises.writeFile(filePath, processedBuffer);
 
-    // Tạo full URL từ env hoặc fallback
-    const baseUrl = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 5001}`;
-    
+    // Trả về relative path — frontend tự ghép base URL, tránh hardcode localhost
     return {
-      secure_url: `${baseUrl}/uploads/avatars/${webpFilename}`,
+      secure_url: `/uploads/avatars/${webpFilename}`,
       public_id: webpFilename,
       source: "local",
     };

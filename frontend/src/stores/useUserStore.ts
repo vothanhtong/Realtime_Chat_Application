@@ -8,14 +8,14 @@ import { useChatStore } from "./useChatStore";
 export const useUserStore = create<UserState>(() => ({
   updateAvatarUrl: async (formData) => {
     try {
-      const { user, setUser } = useAuthStore.getState();
+      const { setUser } = useAuthStore.getState();
       const data = await userService.uploadAvatar(formData);
 
-      if (user) {
-        setUser({ ...user, avatarUrl: data.avatarUrl });
-        useChatStore.getState().fetchConversations();
-        toast.success("Cập nhật ảnh đại diện thành công!");
+      if (data.user) {
+        setUser(data.user);
       }
+      useChatStore.getState().fetchConversations();
+      toast.success("Cập nhật ảnh đại diện thành công!");
     } catch (error: unknown) {
       console.error("Lỗi khi updateAvatarUrl", error);
       const msg =

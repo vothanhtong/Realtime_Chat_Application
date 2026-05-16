@@ -5,15 +5,15 @@ const ChatWelcomeScreen = () => {
   return (
     <SidebarInset className="flex w-full h-full bg-transparent">
       <ChatWindowHeader />
-      <div className="flex bg-primary-foreground rounded-2xl flex-1 items-center justify-center">
-        <div className="text-center">
-          <div className="size-24 mx-auto mb-6 bg-gradient-chat rounded-full flex items-center justify-center shadow-glow pulse-ring">
-            <span className="text-3xl">💬</span>
+      <div className="flex bg-primary-foreground rounded-none md:rounded-2xl flex-1 items-center justify-center p-4">
+        <div className="text-center px-4">
+          <div className="size-16 sm:size-24 mx-auto mb-4 sm:mb-6 bg-gradient-chat rounded-full flex items-center justify-center shadow-glow pulse-ring">
+            <span className="text-2xl sm:text-3xl">💬</span>
           </div>
-          <h2 className="text-2xl font-bold mb-2 bg-gradient-chat bg-clip-text text-transparent">
+          <h2 className="text-lg sm:text-2xl font-bold mb-2 bg-gradient-chat bg-clip-text text-transparent">
             Chào mừng bạn đến với Chat App!
           </h2>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Chọn một cuộc hội thoại để bắt đầu chat!
           </p>
         </div>
