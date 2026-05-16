@@ -13,6 +13,23 @@ A modern fullstack realtime chat application built with MERN Stack & Socket.IO
 
 ---
 
+# 🌐 Live Demo
+
+<p align="center">
+  <a href="https://realtime-chat-application-mocha.vercel.app/">
+    <img src="https://img.shields.io/badge/Live-Demo-success?style=for-the-badge&logo=vercel" />
+  </a>
+</p>
+
+<div align="center">
+
+🚀 Try the application here:  
+👉 https://realtime-chat-application-mocha.vercel.app/
+
+</div>
+
+---
+
 # 📌 Introduction
 
 This project is a **Fullstack Realtime Chat Application** that allows users to communicate instantly through a modern messaging platform.
@@ -242,22 +259,6 @@ Protected Routes Access
 - Push Notifications
 - End-to-End Encryption
 
----
-
-# 👨‍💻 Author
-
-## Võ Thanh Tòng
-
-- GitHub: https://github.com/vothanhtong
-- Facebook: https://web.facebook.com/thanh.tong.378542
-
----
-
-# 📄 License
-
-This project is licensed under the MIT License.
-
----
 
 <div align="center">
 
