@@ -3,6 +3,9 @@ node_modules/
 !.env.example
 jsconfig.json
 
+# Upload files (ảnh avatar local — không commit lên git)
+Backend/uploads/
+
 # REACT
 # Logs
 logs
