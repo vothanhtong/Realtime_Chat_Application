@@ -64,10 +64,12 @@ const AddFriendModal = () => {
     try {
       const message = await addFriend(searchUser._id, data.message.trim());
       toast.success(message);
-
       handleCancel();
-    } catch (error) {
-      console.error("Lỗi xảy ra khi gửi request từ form", error);
+    } catch (error: unknown) {
+      const msg =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Gửi lời mời kết bạn thất bại. Hãy thử lại!";
+      toast.error(msg);
     }
   });
 

@@ -22,10 +22,23 @@ import { useState } from "react";
 import FriendRequestDialog from "../friendRequest/FriendRequestDialog";
 import ProfileDialog from "../profile/ProfileDialog";
 
+/** Resolve relative avatar paths to full URLs (mirrors UserAvatar logic) */
+const resolveAvatarUrl = (url?: string): string | undefined => {
+  if (!url) return undefined;
+  if (url.startsWith("/uploads") || url.includes("/uploads/avatars/")) {
+    const base = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5001";
+    const filename = url.split("/uploads/avatars/").pop();
+    return `${base}/uploads/avatars/${filename}`;
+  }
+  return url;
+};
+
 export function NavUser({ user }: { user: User }) {
   const { isMobile } = useSidebar();
   const [friendRequestOpen, setfriendRequestOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+
+  const avatarUrl = resolveAvatarUrl(user.avatarUrl);
 
   return (
     <>
@@ -39,7 +52,7 @@ export function NavUser({ user }: { user: User }) {
               >
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage
-                    src={user.avatarUrl}
+                    src={avatarUrl}
                     alt={user.displayName}
                   />
                   <AvatarFallback className="rounded-lg">
@@ -63,7 +76,7 @@ export function NavUser({ user }: { user: User }) {
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <Avatar className="h-8 w-8 rounded-lg">
                     <AvatarImage
-                      src={user.avatarUrl}
+                      src={avatarUrl}
                       alt={user.username}
                     />
                     <AvatarFallback className="rounded-lg">
