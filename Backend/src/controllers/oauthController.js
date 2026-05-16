@@ -1,51 +1,32 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as GitHubStrategy } from "passport-github2";
-import User from "../models/User.js";
-import Session from "../models/Session.js";
-import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import User from "../models/User.js";
+import { signAccessToken, createSession } from "./authController.js";
 
-const ACCESS_TOKEN_TTL = "15m";
-const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000;
-const isProduction = process.env.NODE_ENV === "production";
-const BASE_URL = `http://localhost:${process.env.PORT || 5001}`;
-const CLIENT_URL = process.env.CLIENT_URL?.split(",")[0] || "http://localhost:5173";
+const CLIENT_URL =
+  process.env.CLIENT_URL?.split(",")[0]?.trim() || "http://localhost:5173";
 
-// ─── Helper: tạo session + trả token ─────────────────────────────────────────
-const createSessionAndRedirect = async (res, user) => {
-  const accessToken = jwt.sign(
-    { userId: user._id },
-    process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: ACCESS_TOKEN_TTL }
-  );
+const BASE_URL = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 5001}`;
 
-  const refreshToken = crypto.randomBytes(64).toString("hex");
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-  await Session.create({
-    userId: user._id,
-    refreshToken,
-    expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL),
-  });
-
-  res.cookie("refreshToken", refreshToken, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? "none" : "lax",
-    maxAge: REFRESH_TOKEN_TTL,
-  });
-
-  // Redirect về frontend kèm accessToken trong query (frontend sẽ lưu vào store)
-  return res.redirect(`${CLIENT_URL}/oauth/callback?token=${accessToken}`);
-};
-
-// ─── Helper: tìm hoặc tạo user từ OAuth ──────────────────────────────────────
-const findOrCreateOAuthUser = async ({ email, displayName, avatarUrl, provider, providerId }) => {
-  // Tìm theo email trước
-  let user = await User.findOne({ email });
+/**
+ * Find an existing user by email or create a new one from OAuth profile data.
+ * Keeps OAuth users separate from password-based users by storing a random
+ * unusable hash as their password.
+ */
+const findOrCreateOAuthUser = async ({
+  email,
+  displayName,
+  avatarUrl,
+  providerId,
+}) => {
+  let user = await User.findOne({ email: email.toLowerCase() });
 
   if (user) {
-    // Cập nhật avatar nếu chưa có
+    // Backfill avatar if the user doesn't have one yet
     if (!user.avatarUrl && avatarUrl) {
       user.avatarUrl = avatarUrl;
       await user.save();
@@ -53,20 +34,21 @@ const findOrCreateOAuthUser = async ({ email, displayName, avatarUrl, provider, 
     return user;
   }
 
-  // Tạo username từ email hoặc providerId
-  let username = email.split("@")[0].toLowerCase().replace(/[^a-z0-9_]/g, "_");
+  // Derive a username from the email local-part, sanitized to [a-z0-9_]
+  let username = email
+    .split("@")[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "_");
 
-  // Đảm bảo username unique
-  const existing = await User.findOne({ username });
-  if (existing) {
-    username = `${username}_${providerId.slice(-4)}`;
-  }
+  // Ensure uniqueness by appending last 4 chars of providerId if taken
+  const taken = await User.exists({ username });
+  if (taken) username = `${username}_${providerId.slice(-4)}`;
 
-  // Tạo user mới (không có password — đăng nhập qua OAuth)
   user = await User.create({
     username,
-    hashedPassword: crypto.randomBytes(32).toString("hex"), // random, không dùng được
-    email,
+    // Random unusable hash — OAuth users never log in with a password
+    hashedPassword: crypto.randomBytes(32).toString("hex"),
+    email: email.toLowerCase(),
     displayName: displayName || username,
     avatarUrl: avatarUrl || undefined,
   });
@@ -74,8 +56,20 @@ const findOrCreateOAuthUser = async ({ email, displayName, avatarUrl, provider, 
   return user;
 };
 
+/** Issue tokens, set cookie, and redirect to the frontend callback page */
+const handleOAuthSuccess = async (res, user) => {
+  const accessToken = signAccessToken(user._id);
+  await createSession(res, user._id);
+  return res.redirect(`${CLIENT_URL}/oauth/callback?token=${accessToken}`);
+};
+
 // ─── Google Strategy ──────────────────────────────────────────────────────────
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_ID !== "your_google_client_id") {
+
+const GOOGLE_CONFIGURED =
+  process.env.GOOGLE_CLIENT_ID &&
+  process.env.GOOGLE_CLIENT_ID !== "your_google_client_id";
+
+if (GOOGLE_CONFIGURED) {
   passport.use(
     new GoogleStrategy(
       {
@@ -83,7 +77,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_ID !== "your_googl
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
         callbackURL: `${BASE_URL}/api/auth/google/callback`,
       },
-      async (accessToken, refreshToken, profile, done) => {
+      async (_at, _rt, profile, done) => {
         try {
           const email = profile.emails?.[0]?.value;
           if (!email) return done(new Error("Không lấy được email từ Google"));
@@ -92,13 +86,12 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_ID !== "your_googl
             email,
             displayName: profile.displayName,
             avatarUrl: profile.photos?.[0]?.value,
-            provider: "google",
             providerId: profile.id,
           });
 
           return done(null, user);
-        } catch (error) {
-          return done(error);
+        } catch (err) {
+          return done(err);
         }
       }
     )
@@ -106,7 +99,12 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_ID !== "your_googl
 }
 
 // ─── GitHub Strategy ──────────────────────────────────────────────────────────
-if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_ID !== "your_github_client_id") {
+
+const GITHUB_CONFIGURED =
+  process.env.GITHUB_CLIENT_ID &&
+  process.env.GITHUB_CLIENT_ID !== "your_github_client_id";
+
+if (GITHUB_CONFIGURED) {
   passport.use(
     new GitHubStrategy(
       {
@@ -115,7 +113,7 @@ if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_ID !== "your_githu
         callbackURL: `${BASE_URL}/api/auth/github/callback`,
         scope: ["user:email"],
       },
-      async (accessToken, refreshToken, profile, done) => {
+      async (_at, _rt, profile, done) => {
         try {
           const email =
             profile.emails?.find((e) => e.primary)?.value ||
@@ -126,13 +124,12 @@ if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_ID !== "your_githu
             email,
             displayName: profile.displayName || profile.username,
             avatarUrl: profile.photos?.[0]?.value,
-            provider: "github",
-            providerId: profile.id,
+            providerId: String(profile.id),
           });
 
           return done(null, user);
-        } catch (error) {
-          return done(error);
+        } catch (err) {
+          return done(err);
         }
       }
     )
@@ -140,16 +137,18 @@ if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_ID !== "your_githu
 }
 
 // ─── Route handlers ───────────────────────────────────────────────────────────
+
 export const googleAuth = passport.authenticate("google", {
   scope: ["profile", "email"],
   session: false,
 });
 
 export const googleCallback = [
-  passport.authenticate("google", { session: false, failureRedirect: `${CLIENT_URL}/signin?error=google_failed` }),
-  async (req, res) => {
-    await createSessionAndRedirect(res, req.user);
-  },
+  passport.authenticate("google", {
+    session: false,
+    failureRedirect: `${CLIENT_URL}/signin?error=google_failed`,
+  }),
+  async (req, res) => handleOAuthSuccess(res, req.user),
 ];
 
 export const githubAuth = passport.authenticate("github", {
@@ -158,10 +157,11 @@ export const githubAuth = passport.authenticate("github", {
 });
 
 export const githubCallback = [
-  passport.authenticate("github", { session: false, failureRedirect: `${CLIENT_URL}/signin?error=github_failed` }),
-  async (req, res) => {
-    await createSessionAndRedirect(res, req.user);
-  },
+  passport.authenticate("github", {
+    session: false,
+    failureRedirect: `${CLIENT_URL}/signin?error=github_failed`,
+  }),
+  async (req, res) => handleOAuthSuccess(res, req.user),
 ];
 
 export const initPassport = (app) => {

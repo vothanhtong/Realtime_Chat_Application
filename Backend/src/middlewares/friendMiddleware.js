@@ -1,78 +1,81 @@
 import Conversation from "../models/Conversation.js";
 import Friend from "../models/Friend.js";
+import { AppError } from "../utils/AppError.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
-const pair = (a, b) => (a < b ? [a, b] : [b, a]);
-
-export const checkFriendship = async (req, res, next) => {
-  try {
-    const me = req.user._id.toString();
-    const recipientId = req.body?.recipientId ?? null;
-    const memberIds = req.body?.memberIds ?? [];
-
-    if (!recipientId && memberIds.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "Cần cung cấp recipientId hoặc memberIds" });
-    }
-
-    if (recipientId) {
-      const [userA, userB] = pair(me, recipientId);
-
-      const isFriend = await Friend.findOne({ userA, userB });
-
-      if (!isFriend) {
-        return res.status(403).json({ message: "Bạn chưa kết bạn với người này" });
-      }
-
-      return next();
-    }
-
-    const friendChecks = memberIds.map(async (memberId) => {
-      const [userA, userB] = pair(me, memberId);
-      const friend = await Friend.findOne({ userA, userB });
-      return friend ? null : memberId;
-    });
-
-    const results = await Promise.all(friendChecks);
-    const notFriends = results.filter(Boolean);
-
-    if (notFriends.length > 0) {
-      return res
-        .status(403)
-        .json({ message: "Bạn chỉ có thể thêm bạn bè vào nhóm.", notFriends });
-    }
-
-    next();
-  } catch (error) {
-    console.error("Lỗi xảy ra khi checkFriendship:", error);
-    return res.status(500).json({ message: "Lỗi hệ thống" });
-  }
+/** Normalize a user-pair so userA < userB (lexicographic) */
+const normalizePair = (a, b) => {
+  const sa = a.toString();
+  const sb = b.toString();
+  return sa < sb ? [sa, sb] : [sb, sa];
 };
 
-export const checkGroupMembership = async (req, res, next) => {
-  try {
-    const { conversationId } = req.body;
-    const userId = req.user._id;
+/**
+ * Ensures the requesting user is friends with the recipient (direct message)
+ * or with ALL members (group creation).
+ *
+ * Expects req.body.recipientId  — for direct messages
+ *      or req.body.memberIds[]  — for group creation
+ */
+export const checkFriendship = asyncHandler(async (req, _res, next) => {
+  const me = req.user._id.toString();
+  const { recipientId, memberIds } = req.body;
 
-    const conversation = await Conversation.findById(conversationId);
-
-    if (!conversation) {
-      return res.status(404).json({ message: "Không tìm thấy cuộc trò chuyện" });
-    }
-
-    const isMember = conversation.participants.some(
-      (p) => p.userId.toString() === userId.toString()
-    );
-
-    if (!isMember) {
-      return res.status(403).json({ message: "Bạn không ở trong group này." });
-    }
-
-    req.conversation = conversation;
-
-    next();
-  } catch (error) {
-    console.error("Lỗi checkGroupMembership:", error);
-    return res.status(500).json({ message: "Lỗi hệ thống" });
+  if (!recipientId && (!Array.isArray(memberIds) || memberIds.length === 0)) {
+    throw new AppError("Cần cung cấp recipientId hoặc memberIds", 400);
   }
-};
+
+  if (recipientId) {
+    const [userA, userB] = normalizePair(me, recipientId);
+    const isFriend = await Friend.exists({ userA, userB });
+    if (!isFriend) throw new AppError("Bạn chưa kết bạn với người này", 403);
+    return next();
+  }
+
+  // Batch-check all memberIds in a single query
+  const pairs = memberIds.map((id) => {
+    const [userA, userB] = normalizePair(me, id);
+    return { userA, userB };
+  });
+
+  const friendships = await Friend.find({ $or: pairs }, { userA: 1, userB: 1 }).lean();
+
+  const friendSet = new Set(
+    friendships.map((f) => `${f.userA}_${f.userB}`)
+  );
+
+  const notFriends = memberIds.filter((id) => {
+    const [userA, userB] = normalizePair(me, id);
+    return !friendSet.has(`${userA}_${userB}`);
+  });
+
+  if (notFriends.length > 0) {
+    throw new AppError("Bạn chỉ có thể thêm bạn bè vào nhóm", 403);
+  }
+
+  next();
+});
+
+/**
+ * Verifies the requesting user is a member of the group conversation.
+ * Attaches the conversation document to req.conversation.
+ */
+export const checkGroupMembership = asyncHandler(async (req, _res, next) => {
+  const { conversationId } = req.body;
+  const userId = req.user._id;
+
+  if (!conversationId) throw new AppError("Cần cung cấp conversationId", 400);
+
+  const conversation = await Conversation.findById(conversationId);
+
+  if (!conversation) throw new AppError("Không tìm thấy cuộc trò chuyện", 404);
+
+  const isMember = conversation.participants.some(
+    (p) => p.userId.toString() === userId.toString()
+  );
+
+  if (!isMember) throw new AppError("Bạn không ở trong group này", 403);
+
+  req.conversation = conversation;
+  next();
+});
