@@ -32,19 +32,17 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     set({ socket });
 
     socket.on("connect", () => {
-      console.log("✅ Đã kết nối với socket");
+      // connected
     });
 
     socket.on("disconnect", (reason) => {
-      console.log("❌ Socket disconnected:", reason);
       if (reason === "io server disconnect") {
-        // Server chủ động disconnect, cần reconnect thủ công
         socket.connect();
       }
     });
 
     socket.on("connect_error", (error) => {
-      console.error("❌ Socket connection error:", error.message);
+      console.error("Socket connection error:", error.message);
     });
 
     // online users
