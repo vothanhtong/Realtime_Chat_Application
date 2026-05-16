@@ -80,16 +80,13 @@ export const useSocketStore = create<SocketState>((set, get) => ({
       useChatStore.getState().updateConversation(updatedConversation);
     });
 
-    // read message
-    socket.on("read-message", ({ conversation, lastMessage }) => {
+    // read message — backend emits: { conversationId, seenBy, lastMessage }
+    socket.on("read-message", ({ conversationId, seenBy, lastMessage }) => {
       const updated = {
-        _id: conversation._id,
+        _id: conversationId,
         lastMessage,
-        lastMessageAt: conversation.lastMessageAt,
-        unreadCounts: conversation.unreadCounts,
-        seenBy: conversation.seenBy,
+        seenBy,
       };
-
       useChatStore.getState().updateConversation(updated);
     });
 

@@ -15,10 +15,10 @@ export const chatService = {
   },
 
   async fetchMessages(id: string, cursor?: string): Promise<FetchMessageProps> {
+    const cursorParam = cursor ? `&cursor=${encodeURIComponent(cursor)}` : "";
     const res = await api.get(
-      `/conversations/${id}/messages?limit=${pageLimit}&cursor=${cursor}`
+      `/conversations/${id}/messages?limit=${pageLimit}${cursorParam}`
     );
-
     return { messages: res.data.messages, cursor: res.data.nextCursor };
   },
 

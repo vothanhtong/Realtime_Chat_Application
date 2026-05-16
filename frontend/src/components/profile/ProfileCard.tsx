@@ -12,13 +12,12 @@ interface ProfileCardProps {
 
 const ProfileCard = ({ user }: ProfileCardProps) => {
   const { onlineUsers } = useSocketStore();
-  if (!user) return;
 
-  if (!user.bio) {
-    user.bio = "Will code for food 💻";
-  }
+  if (!user) return null;
 
-  const isOnline = onlineUsers.includes(user._id) ? true : false;
+  // Don't mutate the prop — use a local variable
+  const bio = user.bio || "Will code for food 💻";
+  const isOnline = onlineUsers.includes(user._id);
 
   return (
     <Card className="overflow-hidden p-0 bg-gradient-to-r from-sky-500 via-blue-500 to-blue-600">
@@ -38,11 +37,9 @@ const ProfileCard = ({ user }: ProfileCardProps) => {
           <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-white truncate">
             {user.displayName}
           </h1>
-          {user.bio && (
-            <p className="text-white/70 text-xs sm:text-sm mt-1 max-w-lg line-clamp-2">
-              {user.bio}
-            </p>
-          )}
+          <p className="text-white/70 text-xs sm:text-sm mt-1 max-w-lg line-clamp-2">
+            {bio}
+          </p>
         </div>
 
         <Badge
