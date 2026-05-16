@@ -10,13 +10,14 @@ export const useFriendStore = create<FriendState>((set) => ({
   searchByUsername: async (username) => {
     try {
       set({ loading: true });
-
       const user = await friendService.searchByUsername(username);
-
       return user;
-    } catch (error) {
-      console.error("Lỗi xảy ra khi tìm user bằng username", error);
-      return null;
+    } catch (error: unknown) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      // 404 = user not found — expected, return null so UI shows "not found"
+      if (status === 404) return null;
+      // Other errors (network, server) — re-throw so caller can show error toast
+      throw error;
     } finally {
       set({ loading: false });
     }

@@ -50,11 +50,13 @@ const AddFriendModal = () => {
         setIsFound(true);
         setSearchUser(foundUser);
       } else {
+        // 404 — user does not exist
         setIsFound(false);
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // Network/server error — show not found to avoid leaking details
       setIsFound(false);
+      toast.error("Tìm kiếm thất bại. Vui lòng thử lại!");
     }
   });
 
