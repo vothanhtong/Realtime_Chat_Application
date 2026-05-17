@@ -1,5 +1,5 @@
 import { signInWithPopup, type UserCredential } from "firebase/auth";
-import { auth, googleProvider, githubProvider } from "@/config/firebase";
+import { auth, googleProvider, githubProvider, isFirebaseReady } from "@/config/firebase";
 import api from "@/lib/axios";
 
 export interface OAuthResponse {
@@ -14,78 +14,47 @@ export interface OAuthResponse {
   };
 }
 
-/**
- * Sign in with Google using Firebase
- */
 export const signInWithGoogle = async (): Promise<OAuthResponse> => {
+  if (!isFirebaseReady || !auth || !googleProvider) {
+    throw new Error("Firebase chưa được cấu hình. Vui lòng điền VITE_FIREBASE_* vào file .env");
+  }
+
   try {
-    // Step 1: Sign in with Firebase
     const result: UserCredential = await signInWithPopup(auth, googleProvider);
-    
-    // Step 2: Get Firebase ID token
     const idToken = await result.user.getIdToken();
-    
-    // Step 3: Send token to backend
-    const response = await api.post<OAuthResponse>("/auth/oauth/google", {
-      idToken,
-    });
-    
+    const response = await api.post<OAuthResponse>("/auth/oauth/google", { idToken });
     return response.data;
-  } catch (error: any) {
-    console.error("Google sign-in error:", error);
-    
-    // Handle specific Firebase errors
-    if (error.code === "auth/popup-closed-by-user") {
-      throw new Error("Đăng nhập bị hủy");
-    } else if (error.code === "auth/popup-blocked") {
-      throw new Error("Popup bị chặn. Vui lòng cho phép popup và thử lại");
-    } else if (error.code === "auth/cancelled-popup-request") {
-      throw new Error("Yêu cầu đăng nhập bị hủy");
-    }
-    
+  } catch (error: unknown) {
+    const firebaseError = error as { code?: string };
+    if (firebaseError.code === "auth/popup-closed-by-user") throw new Error("Đăng nhập bị hủy");
+    if (firebaseError.code === "auth/popup-blocked") throw new Error("Popup bị chặn. Vui lòng cho phép popup và thử lại");
+    if (firebaseError.code === "auth/cancelled-popup-request") throw new Error("Yêu cầu đăng nhập bị hủy");
     throw error;
   }
 };
 
-/**
- * Sign in with GitHub using Firebase
- */
 export const signInWithGitHub = async (): Promise<OAuthResponse> => {
+  if (!isFirebaseReady || !auth || !githubProvider) {
+    throw new Error("Firebase chưa được cấu hình. Vui lòng điền VITE_FIREBASE_* vào file .env");
+  }
+
   try {
-    // Step 1: Sign in with Firebase
     const result: UserCredential = await signInWithPopup(auth, githubProvider);
-    
-    // Step 2: Get Firebase ID token
     const idToken = await result.user.getIdToken();
-    
-    // Step 3: Send token to backend
-    const response = await api.post<OAuthResponse>("/auth/oauth/github", {
-      idToken,
-    });
-    
+    const response = await api.post<OAuthResponse>("/auth/oauth/github", { idToken });
     return response.data;
-  } catch (error: any) {
-    console.error("GitHub sign-in error:", error);
-    
-    // Handle specific Firebase errors
-    if (error.code === "auth/popup-closed-by-user") {
-      throw new Error("Đăng nhập bị hủy");
-    } else if (error.code === "auth/popup-blocked") {
-      throw new Error("Popup bị chặn. Vui lòng cho phép popup và thử lại");
-    } else if (error.code === "auth/cancelled-popup-request") {
-      throw new Error("Yêu cầu đăng nhập bị hủy");
-    } else if (error.code === "auth/account-exists-with-different-credential") {
-      throw new Error("Email này đã được sử dụng với phương thức đăng nhập khác");
-    }
-    
+  } catch (error: unknown) {
+    const firebaseError = error as { code?: string };
+    if (firebaseError.code === "auth/popup-closed-by-user") throw new Error("Đăng nhập bị hủy");
+    if (firebaseError.code === "auth/popup-blocked") throw new Error("Popup bị chặn. Vui lòng cho phép popup và thử lại");
+    if (firebaseError.code === "auth/cancelled-popup-request") throw new Error("Yêu cầu đăng nhập bị hủy");
+    if (firebaseError.code === "auth/account-exists-with-different-credential") throw new Error("Email này đã được sử dụng với phương thức đăng nhập khác");
     throw error;
   }
 };
 
-/**
- * Sign out from Firebase
- */
 export const signOutFirebase = async (): Promise<void> => {
+  if (!auth) return;
   try {
     await auth.signOut();
   } catch (error) {

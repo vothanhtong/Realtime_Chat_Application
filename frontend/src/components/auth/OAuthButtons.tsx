@@ -6,6 +6,7 @@ import { oauthService } from "@/services/oauthService";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useChatStore } from "@/stores/useChatStore";
 import { useNavigate } from "react-router";
+import { isFirebaseReady } from "@/config/firebase";
 
 // SVG Icons
 const GoogleIcon = () => (
@@ -46,8 +47,8 @@ const OAuthButtons = ({ mode = "signin" }: OAuthButtonsProps) => {
   const { fetchConversations } = useChatStore();
   const navigate = useNavigate();
 
-  const googleEnabled = import.meta.env.VITE_GOOGLE_OAUTH_ENABLED === "true";
-  const githubEnabled = import.meta.env.VITE_GITHUB_OAUTH_ENABLED === "true";
+  const googleEnabled = import.meta.env.VITE_GOOGLE_OAUTH_ENABLED === "true" && isFirebaseReady;
+  const githubEnabled = import.meta.env.VITE_GITHUB_OAUTH_ENABLED === "true" && isFirebaseReady;
 
   const handleGoogleLogin = async () => {
     try {
