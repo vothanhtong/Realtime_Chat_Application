@@ -15,7 +15,12 @@ import swaggerUi from "swagger-ui-express";
 import { v2 as cloudinary } from "cloudinary";
 
 import { connectDB } from "./libs/db.js";
-import { app, server } from "./socket/index.js";
+import { io, app, server } from "./socket/index.js";
+import { initializeFirebase } from "./config/firebase.js";
+
+// Gắn io vào app để dùng trong controllers mà không bị circular dependency
+app.set("io", io);
+
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { protectedRoute } from "./middlewares/authMiddleware.js";
 import { initPassport } from "./controllers/oauthController.js";
@@ -97,6 +102,10 @@ app.use(
 
 initPassport(app);
 
+// ─── Firebase Admin (OAuth) ───────────────────────────────────────────────────
+
+initializeFirebase();
+
 // ─── Cloudinary ───────────────────────────────────────────────────────────────
 
 cloudinary.config({
@@ -138,8 +147,46 @@ app.use(errorHandler);
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
-connectDB().then(() => {
-  server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+// Handle port conflicts — auto-switch to next available port
+let currentPort = Number(PORT);
+const MAX_PORT_RETRIES = 10;
+let portAttempt = 0;
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE" && portAttempt < MAX_PORT_RETRIES) {
+    portAttempt++;
+    currentPort++;
+    console.warn(`⚠️  Port ${currentPort - 1} is in use — trying port ${currentPort}...`);
+    server.listen(currentPort);
+  } else if (err.code === "EADDRINUSE") {
+    console.error(`❌ No available port found after ${MAX_PORT_RETRIES} attempts. Exiting.`);
+    process.exit(1);
+  } else {
+    console.error("❌ Server error:", err);
+    process.exit(1);
+  }
+});
+
+server.on("listening", () => {
+  console.log(`✅ Server running on port ${currentPort}`);
+});
+
+// Graceful shutdown — prevents orphaned processes holding the port
+const gracefulShutdown = (signal) => {
+  console.log(`\n${signal} received — shutting down gracefully...`);
+  server.close(() => {
+    console.log("Server closed.");
+    process.exit(0);
   });
+  setTimeout(() => process.exit(1), 5000);
+};
+
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Rejection:", reason);
+});
+
+connectDB().then(() => {
+  server.listen(currentPort);
 });

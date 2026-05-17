@@ -6,6 +6,9 @@ jsconfig.json
 # Upload files (ảnh avatar local — không commit lên git)
 Backend/uploads/
 
+# Firebase Service Account Key (NEVER commit this)
+Backend/config/firebase-service-account.json
+
 # REACT
 # Logs
 logs

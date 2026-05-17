@@ -56,6 +56,16 @@ export const chatService = {
     return res.data;
   },
 
+  async deleteMessage(messageId: string) {
+    const res = await api.delete(`/messages/${messageId}`);
+    return res.data;
+  },
+
+  async recallMessage(messageId: string) {
+    const res = await api.post(`/messages/${messageId}/recall`);
+    return res.data;
+  },
+
   async createConversation(
     type: "direct" | "group",
     name: string,

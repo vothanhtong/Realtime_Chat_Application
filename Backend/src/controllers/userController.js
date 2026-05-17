@@ -3,6 +3,8 @@ import { upload, uploadImage, deleteImage } from "../middlewares/uploadMiddlewar
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { AppError } from "../utils/AppError.js";
 import { validateUpdateProfile } from "../middlewares/validate.js";
+import { presenceService } from "../services/presenceService.js";
+import { getUserConversationsForSocketIO } from "./conversationController.js";
 
 // GET /api/users/me
 export const authMe = asyncHandler(async (req, res) => {
@@ -27,7 +29,7 @@ export const searchByUsername = asyncHandler(async (req, res) => {
       { displayName: { $regex: keyword, $options: "i" } },
     ],
   })
-    .select("_id username displayName avatarUrl")
+    .select("_id username displayName avatarUrl statusVisible")
     .lean();
 
   if (!user) throw new AppError("Không tìm thấy người dùng", 404);
@@ -54,10 +56,19 @@ export const updateProfile = asyncHandler(async (req, res) => {
     .select("-hashedPassword")
     .lean();
 
-  return res.status(200).json({
+  const responseData = {
     message: "Cập nhật thông tin thành công",
     user: updated,
+  };
+
+  // Real-time broadcast: Notify all connected users about the name change
+  const io = req.app.get("io");
+  io.emit("user-updated", {
+    userId: req.user._id,
+    displayName: updated.displayName,
   });
+
+  return res.status(200).json(responseData);
 });
 
 // POST /api/users/uploadAvatar
@@ -89,10 +100,69 @@ export const uploadAvatar = [
       .select("-hashedPassword")
       .lean();
 
-    return res.status(200).json({
+    const response = res.status(200).json({
       message: "Upload avatar thành công",
       avatarUrl: updated.avatarUrl,
       user: updated,
     });
+
+    // Real-time broadcast: Notify all connected users about the avatar change
+    const io = req.app.get("io");
+    io.emit("user-updated", {
+      userId: user._id,
+      avatarUrl: updated.avatarUrl,
+    });
+
+    return response;
   }),
 ];
+
+// POST /api/users/uploadImage
+export const uploadChatMessageImage = [
+  upload.single("file"),
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw new AppError("Không có file được upload", 400);
+
+    const result = await uploadImage(req.file.buffer, {
+      folder: "chat_messages",
+      mimetype: req.file.mimetype,
+    });
+
+    return res.status(200).json({
+      url: result.secure_url,
+    });
+  }),
+];
+
+// PATCH /api/users/status-visibility
+export const updateStatusVisibility = asyncHandler(async (req, res) => {
+  const { statusVisible } = req.body;
+  if (typeof statusVisible !== "boolean") {
+    throw new AppError("statusVisible phải là boolean", 400);
+  }
+
+  const updated = await User.findByIdAndUpdate(
+    req.user._id,
+    { statusVisible },
+    { new: true }
+  )
+    .select("-hashedPassword")
+    .lean();
+
+  // Real-time sync: Update presence visibility and broadcast
+  const io = req.app.get("io");
+  await presenceService.updateVisibility(io, req.user._id.toString(), statusVisible);
+
+  const responseData = res.status(200).json({
+    message: "Cập nhật trạng thái hiển thị thành công",
+    user: updated,
+  });
+
+  // Real-time broadcast: Notify all connected users about the visibility change
+  io.emit("user-updated", {
+    userId: req.user._id,
+    statusVisible: statusVisible,
+  });
+
+  return responseData;
+});

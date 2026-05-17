@@ -6,6 +6,7 @@ export interface User {
   avatarUrl?: string;
   bio?: string;
   phone?: string;
+  statusVisible?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -15,6 +16,7 @@ export interface Friend {
   username: string;
   displayName: string;
   avatarUrl?: string;
+  statusVisible?: boolean;
 }
 
 export interface FriendRequest {

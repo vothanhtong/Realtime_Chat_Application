@@ -1,16 +1,33 @@
 import { useFriendStore } from "@/stores/useFriendStore";
 import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { MessageCircleMore, Users } from "lucide-react";
+import { MessageCircleMore, UserMinus, Users } from "lucide-react";
 import { Card } from "../ui/card";
 import UserAvatar from "../chat/UserAvatar";
 import { useChatStore } from "@/stores/useChatStore";
+import { Button } from "../ui/button";
+import { toast } from "sonner";
+import StatusBadge from "../chat/StatusBadge";
+import { useSocketStore } from "@/stores/useSocketStore";
 
 const FriendListModal = () => {
-  const { friends } = useFriendStore();
+  const { friends, unfriend } = useFriendStore();
   const { createConversation } = useChatStore();
+  const { onlineUsers } = useSocketStore();
 
   const handleAddConversation = async (friendId: string) => {
     await createConversation("direct", "", [friendId]);
+  };
+
+  const handleUnfriend = async (e: React.MouseEvent, friendId: string) => {
+    e.stopPropagation();
+    if (window.confirm("Bạn có chắc chắn muốn hủy kết bạn?")) {
+      try {
+        await unfriend(friendId);
+        toast.success("Đã hủy kết bạn!");
+      } catch {
+        toast.error("Hủy kết bạn thất bại!");
+      }
+    }
   };
 
   return (
@@ -42,6 +59,14 @@ const FriendListModal = () => {
                     type="sidebar"
                     name={friend.displayName}
                     avatarUrl={friend.avatarUrl}
+                    statusVisible={friend.statusVisible}
+                  />
+                  <StatusBadge
+                    status={
+                      onlineUsers.includes(friend._id) && friend.statusVisible !== false 
+                        ? "online" 
+                        : "offline"
+                    }
                   />
                 </div>
 
@@ -54,6 +79,16 @@ const FriendListModal = () => {
                     @{friend.username}
                   </span>
                 </div>
+
+                {/* actions */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="opacity-0 group-hover/friendCard:opacity-100 text-destructive hover:bg-destructive/10 transition-all duration-200"
+                  onClick={(e) => handleUnfriend(e, friend._id)}
+                >
+                  <UserMinus className="size-4" />
+                </Button>
               </div>
             </Card>
           ))}

@@ -20,6 +20,16 @@ const messageSchema = new mongoose.Schema(
     imgUrl: {
       type: String,
     },
+    isRecalled: {
+      type: Boolean,
+      default: false,
+    },
+    deletedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   {
     timestamps: true,

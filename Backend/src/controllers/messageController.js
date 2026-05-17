@@ -4,10 +4,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { AppError } from "../utils/AppError.js";
 import { validateSendMessage } from "../middlewares/validate.js";
 import {
-  emitNewMessage,
-  updateConversationAfterCreateMessage,
+  saveAndBroadcastMessage,
 } from "../utils/messageHelper.js";
-import { io } from "../socket/index.js";
 
 // POST /api/messages/direct
 export const sendDirectMessage = asyncHandler(async (req, res) => {
@@ -16,48 +14,14 @@ export const sendDirectMessage = asyncHandler(async (req, res) => {
   const { recipientId, content, conversationId } = req.body;
   const senderId = req.user._id;
 
-  let conversation = null;
-
-  // 1. Try to find by explicit conversationId first
-  if (conversationId) {
-    conversation = await Conversation.findOne({
-      _id: conversationId,
-      "participants.userId": senderId,
-    });
-  }
-
-  // 2. Fall back to finding existing direct conversation between the two users
-  if (!conversation && recipientId) {
-    conversation = await Conversation.findOne({
-      type: "direct",
-      "participants.userId": { $all: [senderId, recipientId] },
-    });
-  }
-
-  // 3. Create new conversation if none exists
-  if (!conversation) {
-    if (!recipientId) throw new AppError("Cần cung cấp recipientId", 400);
-
-    conversation = await Conversation.create({
-      type: "direct",
-      participants: [
-        { userId: senderId, joinedAt: new Date() },
-        { userId: recipientId, joinedAt: new Date() },
-      ],
-      lastMessageAt: new Date(),
-      unreadCounts: new Map(),
-    });
-  }
-
-  const message = await Message.create({
-    conversationId: conversation._id,
+  const io = req.app.get("io");
+  const { message } = await saveAndBroadcastMessage(io, {
     senderId,
-    content: content.trim(),
+    conversationId,
+    recipientId,
+    content,
+    type: "direct",
   });
-
-  updateConversationAfterCreateMessage(conversation, message, senderId);
-  await conversation.save();
-  emitNewMessage(io, conversation, message);
 
   return res.status(201).json({ message });
 });
@@ -68,17 +32,68 @@ export const sendGroupMessage = asyncHandler(async (req, res) => {
 
   const { conversationId, content } = req.body;
   const senderId = req.user._id;
-  const conversation = req.conversation; // attached by checkGroupMembership middleware
 
-  const message = await Message.create({
-    conversationId,
+  const io = req.app.get("io");
+  const { message } = await saveAndBroadcastMessage(io, {
     senderId,
-    content: content.trim(),
+    conversationId,
+    content,
+    type: "group",
   });
 
-  updateConversationAfterCreateMessage(conversation, message, senderId);
-  await conversation.save();
-  emitNewMessage(io, conversation, message);
-
   return res.status(201).json({ message });
+});
+
+// DELETE /api/messages/:messageId
+export const deleteMessage = asyncHandler(async (req, res) => {
+  const { messageId } = req.params;
+  const userId = req.user._id;
+
+  const message = await Message.findById(messageId);
+  if (!message) throw new AppError("Không tìm thấy tin nhắn", 404);
+
+  // Check if user is participant of the conversation
+  const conversation = await Conversation.findOne({
+    _id: message.conversationId,
+    "participants.userId": userId,
+  });
+  if (!conversation) throw new AppError("Bạn không có quyền xóa tin nhắn này", 403);
+
+  // Add to deletedBy if not already there
+  if (!message.deletedBy.includes(userId)) {
+    message.deletedBy.push(userId);
+    await message.save();
+  }
+
+  return res.status(200).json({ message: "Đã xóa tin nhắn cho chính bạn" });
+});
+
+// POST /api/messages/:messageId/recall
+export const recallMessage = asyncHandler(async (req, res) => {
+  const { messageId } = req.params;
+  const userId = req.user._id;
+
+  const message = await Message.findById(messageId);
+  if (!message) throw new AppError("Không tìm thấy tin nhắn", 404);
+
+  if (message.senderId.toString() !== userId.toString()) {
+    throw new AppError("Bạn chỉ có thể thu hồi tin nhắn của chính mình", 403);
+  }
+
+  if (message.isRecalled) throw new AppError("Tin nhắn đã được thu hồi", 400);
+
+  message.isRecalled = true;
+  message.content = "Tin nhắn đã bị thu hồi";
+  message.imgUrl = undefined;
+  await message.save();
+
+  // Notify other participants via socket
+  const io = req.app.get("io");
+  io.to(message.conversationId.toString()).emit("message-recalled", {
+    messageId: message._id,
+    conversationId: message.conversationId,
+    content: message.content,
+  });
+
+  return res.status(200).json({ message: "Đã thu hồi tin nhắn", recalledMessage: message });
 });

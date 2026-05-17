@@ -335,4 +335,15 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Scale up font size on large monitors (27" = typically 2560px wide) */
+  html {
+    font-size: 16px;
+  }
+  @media (min-width: 1920px) {
+    html { font-size: 17px; }
+  }
+  @media (min-width: 2560px) {
+    html { font-size: 19px; }
+  }
 }

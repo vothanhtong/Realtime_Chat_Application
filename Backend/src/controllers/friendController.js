@@ -42,7 +42,20 @@ export const sendFriendRequest = asyncHandler(async (req, res) => {
   if (alreadyFriends) throw new AppError("Hai người đã là bạn bè", 400);
   if (existingRequest) throw new AppError("Đã có lời mời kết bạn đang chờ", 400);
 
-  await FriendRequest.create({ from, to, message: message?.trim() });
+  const newRequest = await FriendRequest.create({ from, to, message: message?.trim() });
+
+  // Real-time notification
+  const io = req.app.get("io");
+  io.to(to.toString()).emit("new-friend-request", {
+    from: {
+      _id: req.user._id,
+      displayName: req.user.displayName,
+      avatarUrl: req.user.avatarUrl,
+      username: req.user.username,
+      statusVisible: req.user.statusVisible,
+    },
+    requestId: newRequest._id,
+  });
 
   return res.status(201).json({ message: "Gửi lời mời kết bạn thành công" });
 });
@@ -65,9 +78,21 @@ export const acceptFriendRequest = asyncHandler(async (req, res) => {
     Friend.create({ userA: request.from, userB: request.to }),
     FriendRequest.deleteOne({ _id: requestId }),
     User.findById(request.from)
-      .select("_id displayName avatarUrl username")
+      .select("_id displayName avatarUrl username statusVisible")
       .lean(),
   ]);
+
+  // Real-time notification to the sender
+  const io = req.app.get("io");
+  io.to(request.from.toString()).emit("friend-request-accepted", {
+    acceptedBy: {
+      _id: req.user._id,
+      displayName: req.user.displayName,
+      avatarUrl: req.user.avatarUrl,
+      username: req.user.username,
+      statusVisible: req.user.statusVisible,
+    },
+  });
 
   return res.status(200).json({
     message: "Chấp nhận lời mời kết bạn thành công",
@@ -102,8 +127,8 @@ export const getAllFriends = asyncHandler(async (req, res) => {
   const friendships = await Friend.find({
     $or: [{ userA: userId }, { userB: userId }],
   })
-    .populate("userA", "_id displayName avatarUrl username")
-    .populate("userB", "_id displayName avatarUrl username")
+    .populate("userA", "_id displayName avatarUrl username statusVisible")
+    .populate("userB", "_id displayName avatarUrl username statusVisible")
     .lean();
 
   const friends = friendships.map((f) => {
@@ -119,7 +144,7 @@ export const getAllFriends = asyncHandler(async (req, res) => {
 // GET /api/friends/requests
 export const getFriendRequests = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const fields = "_id username displayName avatarUrl";
+  const fields = "_id username displayName avatarUrl statusVisible";
 
   const [sent, received] = await Promise.all([
     FriendRequest.find({ from: userId }).populate("to", fields).lean(),

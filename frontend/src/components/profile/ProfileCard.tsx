@@ -4,6 +4,7 @@ import UserAvatar from "../chat/UserAvatar";
 import { Badge } from "../ui/badge";
 import { cn } from "@/lib/utils";
 import { useSocketStore } from "@/stores/useSocketStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import AvatarUploader from "./AvatarUploader";
 
 interface ProfileCardProps {
@@ -11,13 +12,17 @@ interface ProfileCardProps {
 }
 
 const ProfileCard = ({ user }: ProfileCardProps) => {
-  const { onlineUsers } = useSocketStore();
+  const { onlineUsers, socket } = useSocketStore();
+  const { user: authUser } = useAuthStore();
 
   if (!user) return null;
 
-  // Don't mutate the prop — use a local variable
+  const isMe = authUser?._id === user._id;
   const bio = user.bio || "Will code for food 💻";
-  const isOnline = onlineUsers.includes(user._id);
+  
+  // A user is online if they are in the list OR if it's me and my socket is connected
+  // And must also not be hidden
+  const isOnline = (onlineUsers.includes(user._id) || (isMe && socket?.connected)) && user.statusVisible !== false;
 
   return (
     <Card className="overflow-hidden p-0 bg-gradient-to-r from-sky-500 via-blue-500 to-blue-600">

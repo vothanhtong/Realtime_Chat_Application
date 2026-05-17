@@ -53,20 +53,31 @@ const processImage = (buffer) =>
 
 const uploadToCloudinary = (buffer, options = {}) =>
   new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: "chat_app/avatars",
-        resource_type: "image",
-        format: "webp",
-        transformation: [
+    const isAvatar = options.folder === "chat_app/avatars" || !options.folder;
+
+    const transformation = isAvatar
+      ? [
           {
             width: AVATAR_SIZE,
             height: AVATAR_SIZE,
             crop: "fill",
             gravity: "face",
-            quality: "auto:good",
+            quality: "auto",
+            fetch_format: "auto",
           },
-        ],
+        ]
+      : [
+          {
+            quality: "auto",
+            fetch_format: "auto",
+          },
+        ];
+
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: options.folder || "chat_app/avatars",
+        resource_type: "image",
+        transformation,
         ...options,
       },
       (error, result) => (error ? reject(error) : resolve(result))

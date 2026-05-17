@@ -19,6 +19,7 @@ const GroupChatAvatar = ({ participants, type }: GroupChatAvatarProps) => {
         type={type}
         name={member.displayName}
         avatarUrl={member.avatarUrl ?? undefined}
+        statusVisible={member.statusVisible}
       />
     );
   }

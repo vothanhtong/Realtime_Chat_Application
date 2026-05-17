@@ -3,44 +3,11 @@ import Message from "../models/Message.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { AppError } from "../utils/AppError.js";
 import { validateCreateConversation, isValidObjectId } from "../middlewares/validate.js";
-import { io } from "../socket/index.js";
 import {
   DEFAULT_MESSAGE_LIMIT,
   MAX_MESSAGE_LIMIT,
 } from "../config/constants.js";
-
-// ─── Shared formatter ─────────────────────────────────────────────────────────
-
-/**
- * Converts a Mongoose Conversation document (or lean object) into a
- * consistent shape for API responses and socket events.
- */
-const formatConversation = (convo) => {
-  const raw = typeof convo.toObject === "function" ? convo.toObject() : convo;
-
-  const participants = (raw.participants || []).map((p) => ({
-    _id: p.userId?._id ?? p.userId,
-    displayName: p.userId?.displayName ?? null,
-    avatarUrl: p.userId?.avatarUrl ?? null,
-    joinedAt: p.joinedAt,
-  }));
-
-  // unreadCounts can be a Map (Mongoose doc) or plain object (lean)
-  let unreadCounts = {};
-  if (raw.unreadCounts instanceof Map) {
-    unreadCounts = Object.fromEntries(raw.unreadCounts);
-  } else if (raw.unreadCounts && typeof raw.unreadCounts === "object") {
-    unreadCounts = raw.unreadCounts;
-  }
-
-  return { ...raw, participants, unreadCounts };
-};
-
-const POPULATE_CONVERSATION = [
-  { path: "participants.userId", select: "displayName avatarUrl" },
-  { path: "seenBy", select: "displayName avatarUrl" },
-  { path: "lastMessage.senderId", select: "displayName avatarUrl" },
-];
+import { formatConversation, POPULATE_CONVERSATION } from "../utils/formatting.js";
 
 // ─── Controllers ──────────────────────────────────────────────────────────────
 
@@ -88,6 +55,7 @@ export const createConversation = asyncHandler(async (req, res) => {
       ? [userId.toString(), ...memberIds]
       : [userId.toString(), memberIds[0]];
 
+  const io = req.app.get("io");
   allParticipantIds.forEach((id) => {
     io.to(id.toString()).emit("new-group", formatted);
   });
@@ -137,7 +105,10 @@ export const getMessages = asyncHandler(async (req, res) => {
     MAX_MESSAGE_LIMIT
   );
 
-  const query = { conversationId };
+  const query = {
+    conversationId,
+    deletedBy: { $ne: userId }, // Exclude messages deleted by this user
+  };
 
   if (req.query.cursor) {
     const cursorDate = new Date(req.query.cursor);
@@ -151,7 +122,7 @@ export const getMessages = asyncHandler(async (req, res) => {
   let messages = await Message.find(query)
     .sort({ createdAt: -1 })
     .limit(limit + 1)
-    .select("conversationId senderId content imgUrl createdAt")
+    .select("conversationId senderId content imgUrl isRecalled createdAt")
     .lean();
 
   let nextCursor = null;
@@ -194,6 +165,7 @@ export const markAsSeen = asyncHandler(async (req, res) => {
     return res.status(200).json({ message: "Không cần mark as seen" });
   }
 
+  const io = req.app.get("io");
   io.to(conversationId).emit("read-message", {
     conversationId,
     seenBy: updated.seenBy,
@@ -231,6 +203,7 @@ export const deleteConversation = asyncHandler(async (req, res) => {
     Message.deleteMany({ conversationId }),
   ]);
 
+  const io = req.app.get("io");
   io.to(conversationId).emit("conversation-deleted", { conversationId });
 
   return res.status(200).json({ message: "Đã xóa cuộc trò chuyện thành công" });

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { toast } from "sonner";
 import { authService } from "@/services/authService";
+import { oauthService } from "@/services/oauthService";
 import type { AuthState } from "@/types/store";
 import { persist } from "zustand/middleware";
 import { useChatStore } from "./useChatStore";
@@ -23,6 +24,8 @@ export const useAuthStore = create<AuthState>()(
         useChatStore.getState().reset();
         localStorage.clear();
         sessionStorage.clear();
+        // Sign out from Firebase
+        oauthService.signOutFirebase().catch(console.error);
       },
       signUp: async (username, password, email, firstName, lastName) => {
         try {

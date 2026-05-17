@@ -39,6 +39,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       sparse: true, // cho phép null, nhưng không được trùng
     },
+    statusVisible: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,

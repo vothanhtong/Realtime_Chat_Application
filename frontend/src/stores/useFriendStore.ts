@@ -2,7 +2,7 @@ import { friendService } from "@/services/friendService";
 import type { FriendState } from "@/types/store";
 import { create } from "zustand";
 
-export const useFriendStore = create<FriendState>((set) => ({
+export const useFriendStore = create<FriendState>((set, get) => ({
   friends: [],
   loading: false,
   receivedList: [],
@@ -60,6 +60,9 @@ export const useFriendStore = create<FriendState>((set) => ({
       set((state) => ({
         receivedList: state.receivedList.filter((r) => r._id !== requestId),
       }));
+
+      // Refresh the friend list to include the newly added friend
+      await get().getFriends();
     } catch (error) {
       console.error("Lỗi xảy ra khi acceptRequest", error);
     }
@@ -89,5 +92,30 @@ export const useFriendStore = create<FriendState>((set) => ({
     } finally {
       set({ loading: false });
     }
+  },
+  unfriend: async (friendId) => {
+    try {
+      set({ loading: true });
+      await friendService.unfriend(friendId);
+      set((state) => ({
+        friends: state.friends.filter((f) => f._id !== friendId),
+      }));
+    } catch (error) {
+      console.error("Lỗi xảy ra khi unfriend", error);
+      throw error;
+    } finally {
+      set({ loading: false });
+    }
+  },
+  updateFriendInfo: (userId: string, data: Partial<{ displayName: string; avatarUrl: string; statusVisible: boolean }>) => {
+    const updates = { ...data };
+    if (updates.avatarUrl) {
+      updates.avatarUrl = `${updates.avatarUrl}${updates.avatarUrl.includes("?") ? "&" : "?"}t=${Date.now()}`;
+    }
+    set((state) => ({
+      friends: state.friends.map((f) =>
+        f._id === userId ? { ...f, ...updates } : f
+      ),
+    }));
   },
 }));

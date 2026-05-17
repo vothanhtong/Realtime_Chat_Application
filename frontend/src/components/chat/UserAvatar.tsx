@@ -6,6 +6,8 @@ interface IUserAvatarProps {
   name: string;
   avatarUrl?: string;
   className?: string;
+  statusVisible?: boolean;
+  isOwn?: boolean;
 }
 
 // Nếu URL là relative path, thêm backend base URL vào
@@ -23,9 +25,21 @@ const resolveAvatarUrl = (url?: string) => {
   return url;
 };
 
-const UserAvatar = ({ type, name, avatarUrl, className }: IUserAvatarProps) => {
+const UserAvatar = ({
+  type,
+  name,
+  avatarUrl,
+  className,
+  statusVisible = true,
+  isOwn = false,
+}: IUserAvatarProps) => {
   const resolvedUrl = resolveAvatarUrl(avatarUrl);
-  const bgColor = !resolvedUrl ? "bg-blue-500" : "";
+  
+  // Hide avatar image if user is incognito and it's not our own avatar
+  const shouldHideImage = !statusVisible && !isOwn;
+  const finalUrl = shouldHideImage ? undefined : resolvedUrl;
+  
+  const bgColor = !finalUrl ? "bg-primary/20" : "";
 
   if (!name) {
     name = "Moji";
@@ -34,17 +48,19 @@ const UserAvatar = ({ type, name, avatarUrl, className }: IUserAvatarProps) => {
   return (
     <Avatar
       className={cn(
-        className ?? "",
-        type === "sidebar" && "size-12 text-base",
-        type === "chat" && "size-8 text-sm",
-        type === "profile" && "size-24 text-3xl shadow-md"
+        "transition-all duration-300",
+        type === "sidebar" && "size-10 sm:size-11 xl:size-13 text-base",
+        type === "chat" && "size-8 xl:size-9 text-xs",
+        type === "profile" && "size-24 xl:size-32 text-3xl shadow-xl ring-2 ring-background",
+        className
       )}
     >
       <AvatarImage
-        src={resolvedUrl}
+        src={finalUrl}
         alt={name}
+        className="object-cover"
       />
-      <AvatarFallback className={`${bgColor} text-white font-semibold`}>
+      <AvatarFallback className={cn(bgColor, "text-primary font-bold uppercase")}>
         {name.charAt(0)}
       </AvatarFallback>
     </Avatar>

@@ -3,6 +3,7 @@ export interface Participant {
   displayName: string;
   avatarUrl?: string | null;
   joinedAt: string;
+  statusVisible?: boolean;
 }
 
 export interface SeenUser {
@@ -53,4 +54,5 @@ export interface Message {
   updatedAt?: string | null;
   createdAt: string;
   isOwn?: boolean;
+  isRecalled?: boolean;
 }
