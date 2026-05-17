@@ -70,7 +70,12 @@ export const useChatStore = create<ChatState>()(
 
             set((state) => {
               const prev = state.messages[convoId]?.items ?? [];
-              const merged = prev.length > 0 ? [...processed, ...prev] : processed;
+              
+              // Deduplicate: loại bỏ items từ prev đã có trong processed (theo _id)
+              const processedIds = new Set(processed.map((m) => m._id));
+              const filteredPrev = prev.filter((m) => !processedIds.has(m._id));
+              
+              const merged = prev.length > 0 ? [...processed, ...filteredPrev] : processed;
 
               return {
                 messages: {
@@ -257,7 +262,7 @@ export const useChatStore = create<ChatState>()(
               conversations: exists
                 ? state.conversations
                 : [convo, ...state.conversations],
-              activeConversationId: convo._id,
+              // Không tự động set active — để createConversation hoặc user click tự set
             };
           });
         },
@@ -342,6 +347,9 @@ export const useChatStore = create<ChatState>()(
             );
 
             get().addConvo(conversation);
+            
+            // Tự set active sau khi tạo (user chủ động tạo)
+            set({ activeConversationId: conversation._id });
 
             useSocketStore
               .getState()
