@@ -2,12 +2,17 @@
 
 <div align="center">
 
-![React](https://img.shields.io/badge/Frontend-ReactJS-blue?style=for-the-badge&logo=react)
-![NodeJS](https://img.shields.io/badge/Backend-NodeJS-green?style=for-the-badge&logo=node.js)
-![MongoDB](https://img.shields.io/badge/Database-MongoDB-darkgreen?style=for-the-badge&logo=mongodb)
-![Socket.IO](https://img.shields.io/badge/Realtime-Socket.IO-black?style=for-the-badge&logo=socketdotio)
+![React](https://img.shields.io/badge/Frontend-ReactJS-blue?style=for-the-badge\&logo=react)
+![TypeScript](https://img.shields.io/badge/Language-TypeScript-blue?style=for-the-badge\&logo=typescript)
+![NodeJS](https://img.shields.io/badge/Backend-NodeJS-green?style=for-the-badge\&logo=node.js)
+![MongoDB](https://img.shields.io/badge/Database-MongoDB-darkgreen?style=for-the-badge\&logo=mongodb)
+![Socket.IO](https://img.shields.io/badge/Realtime-Socket.IO-black?style=for-the-badge\&logo=socketdotio)
+![Firebase](https://img.shields.io/badge/Auth-Firebase-orange?style=for-the-badge\&logo=firebase)
+![Cloudinary](https://img.shields.io/badge/Media-Cloudinary-blue?style=for-the-badge\&logo=cloudinary)
+![Vercel](https://img.shields.io/badge/Frontend-Vercel-black?style=for-the-badge\&logo=vercel)
+![Render](https://img.shields.io/badge/Backend-Render-purple?style=for-the-badge\&logo=render)
 
-A modern fullstack realtime chat application built with MERN Stack & Socket.IO
+A modern fullstack realtime chat application inspired by Messenger, Discord, and Telegram.
 
 </div>
 
@@ -15,16 +20,11 @@ A modern fullstack realtime chat application built with MERN Stack & Socket.IO
 
 # 🌐 Live Demo
 
-<p align="center">
-  <a href="https://realtime-chat-application-mocha.vercel.app/">
-    <img src="https://img.shields.io/badge/Live-Demo-success?style=for-the-badge&logo=vercel" />
-  </a>
-</p>
-
 <div align="center">
 
-🚀 Try the application here:  
-👉 https://realtime-chat-application-mocha.vercel.app/
+🚀 Live Application:
+
+https://realtime-chat-application-frontend-ruby.vercel.app
 
 </div>
 
@@ -32,83 +32,227 @@ A modern fullstack realtime chat application built with MERN Stack & Socket.IO
 
 # 📌 Introduction
 
-This project is a **Fullstack Realtime Chat Application** that allows users to communicate instantly through a modern messaging platform.
+Realtime Chat Application is a modern fullstack realtime messaging platform built with the MERN Stack and Socket.IO.
 
-The application demonstrates how:
+The application allows users to communicate instantly through realtime messaging, group chats, image sharing, friend systems, online presence tracking, and modern social communication features.
 
-- Frontend communicates with backend
-- Authentication works securely
-- Realtime messaging is implemented
-- MongoDB stores user and chat data
-- Socket.IO handles live communication
+This project demonstrates:
+
+* Fullstack MERN architecture
+* Realtime communication with Socket.IO
+* JWT & Firebase Authentication
+* Responsive modern UI/UX
+* Media optimization with Cloudinary
+* Realtime online presence tracking
+* Modern scalable chat system architecture
 
 ---
 
 # 🚀 Features
 
-## 🔐 Authentication System
-- User Registration (Sign Up)
-- User Login (Sign In)
-- JWT Authentication
-- Password Hashing with bcrypt
-- Protected Routes
-- Logout Functionality
+# 🔐 Authentication System
+
+* User Registration (Sign Up)
+* User Login (Sign In)
+* JWT Authentication
+* Password Hashing with bcrypt
+* Protected Routes
+* Session Persistence
+* Logout Functionality
+
+## Firebase OAuth Authentication
+
+* Google Login
+* GitHub Login
+* Firebase Authentication Integration
 
 ---
 
-## 💬 Realtime Chat Features
-- Instant Messaging
-- Online/Offline Status
-- Typing Indicator
-- Auto Scroll Messages
-- Realtime Updates using Socket.IO
-- Recent Conversations
+# 👤 User Management
+
+* User Profiles
+* Update avatar and personal information
+* Search users by username
+* Online / Offline realtime status
+* Hide online status (Incognito Mode)
+* Multi-tab realtime presence tracking
 
 ---
 
-## 👤 User Features
-- User Profile
-- Upload Avatar
-- Search Users
-- Friends / Contact List
+# 👥 Friend System
+
+* Send Friend Requests
+* Accept / Reject Requests
+* Remove Friends
+* Friend List Management
+* Realtime Friend Notifications
 
 ---
 
-## 🎨 UI/UX
-- Responsive Design
-- Modern Chat Interface
-- Dark Mode
-- Loading Animations
-- Mobile Friendly
+# 💬 Realtime Messaging
+
+## Direct Messages
+
+* 1-to-1 chat
+* Instant realtime messaging
+* Infinite scrolling messages
+* Auto scroll to latest message
+* Unread message counter
+* Conversation sorting by latest activity
+
+## Group Chat
+
+* Create group conversations
+* Add multiple members
+* Group avatars
+* Group realtime messaging
+
+---
+
+# 📨 Message Features
+
+* Send Text Messages
+* Send Images
+* Delete Messages (for self)
+* Recall Messages (delete for everyone)
+* Message status:
+
+  * Sent
+  * Delivered
+  * Seen
+* Realtime message synchronization
+* Read Receipts
+* Typing Indicators
+
+---
+
+# 😊 Emoji & Media
+
+* Emoji Picker
+* Image Upload
+* Image Preview Modal
+* Fullscreen Image Viewer
+* Optimized Cloudinary Image Delivery
+* Blur-up Progressive Image Loading
+* Lazy Loading Images
+* Skeleton Loading UI
+
+---
+
+# ⚡ Realtime Features (Socket.IO)
+
+* Instant Messaging
+* Live Online Presence
+* Typing Indicator
+* Read Receipts
+* Friend Request Updates
+* Message Recall Sync
+* Profile Updates Sync
+* Auto Reconnection
+* Connection Recovery
+
+---
+
+# 🎨 UI/UX Features
+
+* Responsive Design
+* Mobile Friendly
+* Dark Mode / Light Mode
+* Modern Chat Layout
+* Smooth Animations
+* Toast Notifications
+* Glassmorphism Effects
+* Modern Sidebar Navigation
 
 ---
 
 # 🧱 Tech Stack
 
-## Frontend
+# Frontend
+
 ```bash
 - ReactJS
+- TypeScript
 - Vite
 - TailwindCSS
+- Zustand
 - Axios
 - React Router DOM
 - Socket.IO Client
+- Framer Motion
+- Emoji Mart
 ```
 
-## Backend
+---
+
+# Backend
+
 ```bash
 - Node.js
 - Express.js
+- MongoDB
+- Mongoose
 - Socket.IO
 - JWT
 - bcryptjs
-- dotenv
+- Firebase Admin SDK
+- Multer
+- Cloudinary
 ```
 
-## Database
+---
+
+# Database
+
 ```bash
-- MongoDB
-- Mongoose
+- MongoDB Atlas
+```
+
+---
+
+# Cloud & Deployment
+
+```bash
+- Vercel (Frontend)
+- Render (Backend)
+- Cloudinary (Media Storage)
+- Firebase Authentication
+```
+
+---
+
+# 🔌 Realtime Architecture
+
+This project uses Socket.IO for realtime communication between users.
+
+## Socket.IO Powers:
+
+* Instant Messaging
+* Online Presence Tracking
+* Typing Indicators
+* Read Receipts
+* Realtime Notifications
+* Group Chat Synchronization
+* Conversation Updates
+
+---
+
+# 🛡️ Authentication Flow
+
+```text
+User Login/Register
+        ↓
+Server Validates Credentials
+        ↓
+JWT Token Generated
+        ↓
+Frontend Stores Token
+        ↓
+Protected Routes Access
+        ↓
+Socket Authentication
+        ↓
+Realtime Connection Established
 ```
 
 ---
@@ -119,25 +263,25 @@ The application demonstrates how:
 Realtime-Chat-App/
 │
 ├── frontend/
-│   ├── public/
 │   ├── src/
 │   │   ├── components/
 │   │   ├── pages/
-│   │   ├── context/
-│   │   ├── hooks/
+│   │   ├── stores/
 │   │   ├── services/
+│   │   ├── hooks/
 │   │   ├── utils/
-│   │   └── App.jsx
+│   │   └── App.tsx
 │   │
 │   └── package.json
 │
-├── backend/
+├── Backend/
 │   ├── src/
 │   │   ├── controllers/
-│   │   ├── middleware/
 │   │   ├── models/
 │   │   ├── routes/
+│   │   ├── middleware/
 │   │   ├── socket/
+│   │   ├── services/
 │   │   ├── config/
 │   │   └── server.js
 │   │
@@ -150,7 +294,7 @@ Realtime-Chat-App/
 
 # ⚙️ Installation & Setup
 
-## 1️⃣ Clone Repository
+# 1️⃣ Clone Repository
 
 ```bash
 git clone https://github.com/vothanhtong/realtime-chat-app.git
@@ -164,16 +308,20 @@ cd realtime-chat-app
 ## Install Dependencies
 
 ```bash
-cd backend
+cd Backend
 npm install
 ```
 
 ## Create `.env`
 
 ```env
-PORT=5000
-MONGO_URI=your_mongodb_connection
-JWT_SECRET=your_secret_key
+PORT=5001
+MONGO_URI=your_mongodb_uri
+JWT_SECRET=your_secret
+
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
 ```
 
 ## Run Backend
@@ -193,6 +341,13 @@ cd frontend
 npm install
 ```
 
+## Create `.env`
+
+```env
+VITE_API_URL=http://localhost:5001/api
+VITE_SOCKET_URL=http://localhost:5001
+```
+
 ## Run Frontend
 
 ```bash
@@ -201,67 +356,73 @@ npm run dev
 
 ---
 
-# 🔌 Realtime Communication
+# 🚀 Deployment
 
-This project uses **Socket.IO** for realtime communication between users.
+# Frontend Deployment
 
-## Features Powered by Socket.IO
+* Vercel
 
-```bash
-✔ Instant Messaging
-✔ Online Users
-✔ Typing Indicator
-✔ Live Updates
-✔ Message Notifications
-```
+# Backend Deployment
 
----
+* Render
 
-# 🛡️ Authentication Flow
+# Database
 
-```text
-User Register/Login
-        ↓
-Server Validates Data
-        ↓
-JWT Token Generated
-        ↓
-Client Stores Token
-        ↓
-Protected Routes Access
-```
+* MongoDB Atlas
 
----
+# Media Storage
 
-# 📸 Screenshots
-
-## 🔑 Authentication Page
-- Login Form
-- Register Form
-
-## 💬 Chat Interface
-- Sidebar Conversations
-- Realtime Messages
-- Online Status
-- Typing Animation
+* Cloudinary
 
 ---
 
 # 🌟 Future Improvements
 
-- Group Chat
-- Voice Call
-- Video Call
-- Emoji Picker
-- Send Images & Files
-- Message Reactions
-- Delete/Edit Messages
-- Push Notifications
-- End-to-End Encryption
+* Edit Messages
+* Reply Messages
+* Message Reactions
+* Push Notifications
+* File Sharing
+* Voice Messages
+* Voice/Video Calls
+* End-to-End Encryption
+* AI Chatbot Assistant
 
+---
+
+# 📸 Screenshots
+
+## Authentication Page
+
+* Login
+* Register
+* OAuth Login
+
+## Chat Interface
+
+* Realtime Messages
+* Online Users
+* Typing Indicator
+* Group Chat
+
+## Responsive Mobile UI
+
+* Mobile Chat Layout
+* Responsive Sidebar
+
+---
+
+# 👨‍💻 Author
+
+Developed by Võ Thanh Tòng
+
+GitHub:
+https://github.com/vothanhtong
+
+---
 
 <div align="center">
 
-⭐ Don't forget to star this repository if you like it!
+⭐ If you like this project, don't forget to star the repository!
 
 </div>
