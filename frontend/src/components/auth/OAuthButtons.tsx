@@ -65,7 +65,7 @@ const OAuthButtons = ({ mode = "signin" }: OAuthButtonsProps) => {
       navigate("/");
     } catch (error: any) {
       console.error("Google login error:", error);
-      toast.error(error.message || "Đăng nhập Google thất bại");
+      toast.error(error.response?.data?.message || error.message || "Đăng nhập Google thất bại");
     } finally {
       setGoogleLoading(false);
     }
@@ -86,7 +86,7 @@ const OAuthButtons = ({ mode = "signin" }: OAuthButtonsProps) => {
       navigate("/");
     } catch (error: any) {
       console.error("GitHub login error:", error);
-      toast.error(error.message || "Đăng nhập GitHub thất bại");
+      toast.error(error.response?.data?.message || error.message || "Đăng nhập GitHub thất bại");
     } finally {
       setGithubLoading(false);
     }
