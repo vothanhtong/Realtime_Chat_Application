@@ -63,9 +63,10 @@ const OAuthButtons = ({ mode = "signin" }: OAuthButtonsProps) => {
       
       toast.success(`Chào mừng ${user.displayName}! 🎉`);
       navigate("/");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Google login error:", error);
-      toast.error(error.response?.data?.message || error.message || "Đăng nhập Google thất bại");
+      const msg = (error as { response?: { data?: { message?: string } } }).response?.data?.message || (error as Error).message || "Đăng nhập Google thất bại";
+      toast.error(msg);
     } finally {
       setGoogleLoading(false);
     }
@@ -84,9 +85,10 @@ const OAuthButtons = ({ mode = "signin" }: OAuthButtonsProps) => {
       
       toast.success(`Chào mừng ${user.displayName}! 🎉`);
       navigate("/");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("GitHub login error:", error);
-      toast.error(error.response?.data?.message || error.message || "Đăng nhập GitHub thất bại");
+      const msg = (error as { response?: { data?: { message?: string } } }).response?.data?.message || (error as Error).message || "Đăng nhập GitHub thất bại";
+      toast.error(msg);
     } finally {
       setGithubLoading(false);
     }

@@ -55,9 +55,9 @@ export const useAuthStore = create<AuthState>()(
           useChatStore.getState().fetchConversations();
 
           toast.success("Chào mừng bạn quay lại với Chat App 🎉");
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error(error);
-          const msg = error.response?.data?.message || "Đăng nhập không thành công!";
+          const msg = (error as { response?: { data?: { message?: string } } }).response?.data?.message || "Đăng nhập không thành công!";
           toast.error(msg);
           throw error;
         } finally {
