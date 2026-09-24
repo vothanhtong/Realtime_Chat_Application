@@ -4,6 +4,8 @@ import ChatAppPage from "./pages/ChatAppPage";
 import { Toaster } from "sonner";
 import SignUpPage from "./pages/SignUpPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { useThemeStore } from "./stores/useThemeStore";
 import { useEffect } from "react";
@@ -36,6 +38,8 @@ function App() {
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           {/* protected routes */}
           <Route element={<ProtectedRoute />}>
