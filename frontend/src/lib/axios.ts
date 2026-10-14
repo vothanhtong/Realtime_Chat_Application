@@ -44,19 +44,34 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const originalRequest = error.config;
+    if (!originalRequest) return Promise.reject(error);
 
-    // những api không cần check
-    if (
-      originalRequest.url.includes("/auth/signin") ||
-      originalRequest.url.includes("/auth/signup") ||
-      originalRequest.url.includes("/auth/refresh") ||
-      originalRequest.url.includes("/auth/forgot-password") ||
-      originalRequest.url.includes("/auth/reset-password")
-    ) {
+    // Những API public không bao giờ tự động refresh
+    const publicEndpoints = [
+      "/auth/signin",
+      "/auth/signup",
+      "/auth/refresh",
+      "/auth/forgot-password",
+      "/auth/reset-password",
+      // OAuth: 401 ở đây là lỗi token/verification — refresh vô nghĩa vì
+      // chưa có session, và reject bằng lỗi refresh sẽ che mất thông báo thật
+      "/auth/oauth/google",
+      "/auth/oauth/github",
+    ];
+
+    const isPublicEndpoint = publicEndpoints.some((url) =>
+      originalRequest.url?.includes(url)
+    );
+
+    if (isPublicEndpoint) {
       return Promise.reject(error);
     }
 
-    if (error.response?.status === 403 && !originalRequest._retry) {
+    // Khi backend trả về 401 hoặc 403 (token hết hạn)
+    const isAuthError =
+      error.response?.status === 401 || error.response?.status === 403;
+
+    if (isAuthError && !originalRequest._retry) {
       if (isRefreshing) {
         // Nếu đang refresh, đợi trong queue
         return new Promise((resolve, reject) => {
@@ -75,7 +90,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const res = await api.post("/auth/refresh", { withCredentials: true });
+        const res = await api.post("/auth/refresh", {}, { withCredentials: true });
         const newAccessToken = res.data.accessToken;
 
         useAuthStore.getState().setAccessToken(newAccessToken);

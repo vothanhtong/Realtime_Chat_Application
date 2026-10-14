@@ -14,7 +14,6 @@ import OAuthButtons from "./OAuthButtons";
 const signInSchema = z.object({
   username: z.string().min(1, "Vui lòng nhập email hoặc username"),
   password: z.string().min(1, "Vui lòng nhập mật khẩu"),
-  rememberMe: z.boolean().optional(),
 });
 
 type SignInFormValues = z.infer<typeof signInSchema>;
@@ -31,7 +30,6 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
     formState: { errors, isSubmitting },
   } = useForm<SignInFormValues>({
     resolver: zodResolver(signInSchema),
-    defaultValues: { rememberMe: false },
   });
 
   const onSubmit = async (data: SignInFormValues) => {
@@ -134,18 +132,8 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
             )}
           </div>
 
-          {/* Remember me + Forgot password */}
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                className="size-4 rounded accent-sky-500"
-                {...register("rememberMe")}
-              />
-              <span className={cn("text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-                Ghi nhớ đăng nhập
-              </span>
-            </label>
+          {/* Forgot password */}
+          <div className="flex justify-end">
             <Link
               to="/forgot-password"
               className="text-sky-500 text-sm hover:text-sky-400 transition-colors"

@@ -1,18 +1,22 @@
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, Outlet } from "react-router";
 
 const ProtectedRoute = () => {
   const { accessToken, user, loading, refresh, fetchMe } = useAuthStore();
   const [starting, setStarting] = useState(true);
+  // StrictMode (dev) chạy effect 2 lần — guard bằng ref để refresh()/fetchMe()
+  // chỉ được gọi một lần, tránh gửi 2 request /auth/refresh y hệt nhau khi load
+  const initialized = useRef(false);
 
   const init = async () => {
-    // có thể xảy ra khi refresh trang
+    // Nếu chưa có accessToken, thử refresh âm thầm (silent)
     if (!accessToken) {
-      await refresh();
+      await refresh(true);
     }
 
-    if (accessToken && !user) {
+    const currentAccessToken = useAuthStore.getState().accessToken;
+    if (currentAccessToken && !user) {
       await fetchMe();
     }
 
@@ -20,7 +24,10 @@ const ProtectedRoute = () => {
   };
 
   useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
     init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (starting || loading) {
