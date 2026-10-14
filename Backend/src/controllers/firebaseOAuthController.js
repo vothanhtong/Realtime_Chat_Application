@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import crypto from "crypto";
 import User from "../models/User.js";
 import { signAccessToken, createSession } from "./authController.js";
@@ -36,7 +37,9 @@ const findOrCreateOAuthUser = async ({ email, displayName, avatarUrl, firebaseUi
   // Create new user
   user = await User.create({
     username,
-    hashedPassword: crypto.randomBytes(32).toString("hex"), // Random unusable hash
+    // Phải là bcrypt hash hợp lệ: bcrypt.compare() ở login sẽ throw (→ 500)
+    // nếu gặp chuỗi không đúng format
+    hashedPassword: await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10),
     email: email.toLowerCase(),
     displayName: displayName || username,
     avatarUrl: avatarUrl || undefined,
@@ -67,6 +70,12 @@ export const googleOAuth = asyncHandler(async (req, res) => {
       throw new AppError("Email not found in Firebase token", 400);
     }
 
+    // Chặn chiếm tài khoản: account email/password chưa verify trong cùng
+    // project Firebase cũng sinh được ID token mang email của nạn nhân
+    if (!decodedToken.email_verified) {
+      throw new AppError("Email chưa được xác thực", 401);
+    }
+
     // Find or create user in MongoDB
     const user = await findOrCreateOAuthUser({
       email,
@@ -94,8 +103,11 @@ export const googleOAuth = asyncHandler(async (req, res) => {
       },
     });
   } catch (error) {
+    // AppError (400/401...) phải giữ nguyên status code, không nuốt thành 500
+    if (error instanceof AppError) throw error;
+
     console.error("Google OAuth error:", error);
-    
+
     if (error.message.includes("Invalid Firebase token")) {
       throw new AppError("Invalid or expired Firebase token", 401);
     }
