@@ -4,7 +4,9 @@ import axios from "axios";
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   withCredentials: true,
-  timeout: 10000, // 10 seconds timeout
+  // Render free tier ngủ sau ~15 phút idle; request đầu tiên phải chờ cold
+  // boot 30-50s — timeout 10s luôn chết trong lúc này.
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
