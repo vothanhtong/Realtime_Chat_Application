@@ -8,6 +8,17 @@ Backend/uploads/
 
 # Firebase Service Account Key (NEVER commit this)
 Backend/config/firebase-service-account.json
+*firebase-adminsdk*.json
+*firebase-service-account*
+firebase-service-account-base64.txt
+
+# Env files (mọi biến môi trường, kể cả bản "public" dùng để deploy)
+.env
+.env.*
+!.env.example
+
+# Backend test scripts with credentials
+Backend/test-*.js
 
 # REACT
 # Logs

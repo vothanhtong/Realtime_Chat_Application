@@ -12,7 +12,10 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL?.split(","),
+    // CLIENT_URL là list phân cách bằng dấu phẩy — phải tách thành mảng,
+    // gán nguyên chuỗi sẽ không origin nào khớp.
+    // Sau fix env.js, biến này đã có giá trị đúng lúc module load.
+    origin: process.env.CLIENT_URL?.split(",").map((u) => u.trim()).filter(Boolean),
     credentials: true,
   },
   connectionStateRecovery: {

@@ -1,5 +1,5 @@
-import dotenv from "dotenv";
-dotenv.config();
+// PHẢI là import đầu tiên — nạp .env trước khi mọi module khác đọc process.env
+import "./env.js";
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -134,12 +134,17 @@ try {
 // Public routes (auth limiter applied)
 app.use("/api/auth", authLimiter, authRoute);
 
-// Protected routes (JWT required)
-app.use(protectedRoute);
-app.use("/api/users", userRoute);
-app.use("/api/friends", friendRoute);
-app.use("/api/messages", messageRoute);
-app.use("/api/conversations", conversationRoute);
+// Protected routes (JWT required) — gắn inline từng route để
+// request tới route KHÔNG tồn tại rơi xuống 404 thay vì bị 401 chặn trước
+app.use("/api/users", protectedRoute, userRoute);
+app.use("/api/friends", protectedRoute, friendRoute);
+app.use("/api/messages", protectedRoute, messageRoute);
+app.use("/api/conversations", protectedRoute, conversationRoute);
+
+// 404 — mọi request không khớp route nào ở trên
+app.use((req, res) => {
+  res.status(404).json({ message: "Route không tồn tại" });
+});
 
 // ─── Global error handler (must be last) ─────────────────────────────────────
 

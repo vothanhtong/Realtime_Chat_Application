@@ -17,7 +17,9 @@ export const protectedRoute = asyncHandler(async (req, _res, next) => {
   try {
     decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
   } catch {
-    throw new AppError("Access token hết hạn hoặc không hợp lệ", 403);
+    // 401 thay vì 403: frontend axios chỉ refresh/logout khi nhận 401,
+    // còn 403 dành cho lỗi phân quyền thật sự
+    throw new AppError("Access token hết hạn hoặc không hợp lệ", 401);
   }
 
   const user = await User.findById(decoded.userId)

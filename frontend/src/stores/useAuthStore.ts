@@ -55,9 +55,11 @@ export const useAuthStore = create<AuthState>()(
           useChatStore.getState().fetchConversations();
 
           toast.success("Chào mừng bạn quay lại với Chat App 🎉");
-        } catch (error) {
+        } catch (error: unknown) {
           console.error(error);
-          toast.error("Đăng nhập không thành công!");
+          const msg = (error as { response?: { data?: { message?: string } } }).response?.data?.message || "Đăng nhập không thành công!";
+          toast.error(msg);
+          throw error;
         } finally {
           set({ loading: false });
         }
@@ -86,7 +88,7 @@ export const useAuthStore = create<AuthState>()(
           set({ loading: false });
         }
       },
-      refresh: async () => {
+      refresh: async (silent = false) => {
         try {
           set({ loading: true });
           const { user, fetchMe, setAccessToken } = get();
@@ -97,10 +99,14 @@ export const useAuthStore = create<AuthState>()(
           if (!user) {
             await fetchMe();
           }
+          return true;
         } catch (error) {
-          console.error(error);
-          toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+          if (!silent) {
+            console.error(error);
+            toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+          }
           get().clearState();
+          return false;
         } finally {
           set({ loading: false });
         }
