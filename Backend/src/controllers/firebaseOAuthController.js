@@ -164,6 +164,9 @@ export const githubOAuth = asyncHandler(async (req, res) => {
       },
     });
   } catch (error) {
+    // AppError (400/401...) phải giữ nguyên status code, không nuốt thành 500
+    if (error instanceof AppError) throw error;
+
     console.error("GitHub OAuth error:", error);
     
     if (error.message.includes("Invalid Firebase token")) {
