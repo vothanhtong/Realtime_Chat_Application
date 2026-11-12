@@ -1,3 +1,4 @@
+import { isValidObjectId } from "mongoose";
 import Conversation from "../models/Conversation.js";
 import Friend from "../models/Friend.js";
 import { AppError } from "../utils/AppError.js";
@@ -26,10 +27,17 @@ export const checkFriendship = asyncHandler(async (req, _res, next) => {
   }
 
   if (recipientId) {
+    if (!isValidObjectId(recipientId)) {
+      throw new AppError("recipientId không hợp lệ", 400);
+    }
     const [userA, userB] = normalizePair(me, recipientId);
     const isFriend = await Friend.exists({ userA, userB });
     if (!isFriend) throw new AppError("Bạn chưa kết bạn với người này", 403);
     return next();
+  }
+
+  if (!memberIds.every((id) => isValidObjectId(id))) {
+    throw new AppError("memberIds chứa ID không hợp lệ", 400);
   }
 
   // Batch-check all memberIds in a single query

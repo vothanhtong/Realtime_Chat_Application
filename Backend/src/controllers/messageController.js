@@ -1,3 +1,4 @@
+import { isValidObjectId } from "mongoose";
 import Conversation from "../models/Conversation.js";
 import Message from "../models/Message.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -49,6 +50,10 @@ export const deleteMessage = asyncHandler(async (req, res) => {
   const { messageId } = req.params;
   const userId = req.user._id;
 
+  if (!isValidObjectId(messageId)) {
+    throw new AppError("ID tin nhắn không hợp lệ", 400);
+  }
+
   const message = await Message.findById(messageId);
   if (!message) throw new AppError("Không tìm thấy tin nhắn", 404);
 
@@ -72,6 +77,10 @@ export const deleteMessage = asyncHandler(async (req, res) => {
 export const recallMessage = asyncHandler(async (req, res) => {
   const { messageId } = req.params;
   const userId = req.user._id;
+
+  if (!isValidObjectId(messageId)) {
+    throw new AppError("ID tin nhắn không hợp lệ", 400);
+  }
 
   const message = await Message.findById(messageId);
   if (!message) throw new AppError("Không tìm thấy tin nhắn", 404);

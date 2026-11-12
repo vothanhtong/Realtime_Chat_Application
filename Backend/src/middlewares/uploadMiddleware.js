@@ -10,6 +10,7 @@ import {
   AVATAR_SIZE,
   AVATAR_QUALITY,
 } from "../config/constants.js";
+import { AppError } from "../utils/AppError.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.join(__dirname, "../../uploads/avatars");
@@ -36,7 +37,7 @@ export const upload = multer({
     if (ALLOWED_IMAGE_TYPES.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`Chỉ chấp nhận file ảnh: ${ALLOWED_IMAGE_TYPES.join(", ")}`));
+      cb(new AppError(`Chỉ chấp nhận file ảnh: ${ALLOWED_IMAGE_TYPES.join(", ")}`, 400));
     }
   },
 });

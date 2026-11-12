@@ -25,9 +25,19 @@ export const errorHandler = (err, _req, res, _next) => {
     return res.status(409).json({ message: `${field} đã tồn tại` });
   }
 
+  // Mongoose invalid ObjectId (CastError) — client sent malformed input
+  if (err.name === "CastError") {
+    return res.status(400).json({ message: "Dữ liệu không hợp lệ" });
+  }
+
   // Multer errors
   if (err.name === "MulterError") {
     return res.status(400).json({ message: err.message });
+  }
+
+  // Cloudinary rejects the uploaded file (corrupt/invalid image)
+  if (err.http_code === 400) {
+    return res.status(400).json({ message: "File ảnh không hợp lệ hoặc bị hỏng" });
   }
 
   // JWT errors
