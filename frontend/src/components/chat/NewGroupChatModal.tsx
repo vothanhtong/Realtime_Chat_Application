@@ -21,6 +21,7 @@ import { useChatStore } from "@/stores/useChatStore";
 const NewGroupChatModal = () => {
   const [groupName, setGroupName] = useState("");
   const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
   const { friends, getFriends } = useFriendStore();
   const [invitedUsers, setInvitedUsers] = useState<Friend[]>([]);
   const { loading, createConversation } = useChatStore();
@@ -46,14 +47,18 @@ const NewGroupChatModal = () => {
         return;
       }
 
-      await createConversation(
+      const created = await createConversation(
         "group",
         groupName,
         invitedUsers.map((u) => u._id)
       );
 
-      setSearch("");
-      setInvitedUsers([]);
+      if (created) {
+        setGroupName("");
+        setSearch("");
+        setInvitedUsers([]);
+        setOpen(false);
+      }
     } catch (error) {
       console.error("Lỗi xảy ra khi handleSubmit trong NewGroupChatModal:", error);
     }
@@ -66,7 +71,10 @@ const NewGroupChatModal = () => {
   );
 
   return (
-    <Dialog>
+    <Dialog
+      open={open}
+      onOpenChange={setOpen}
+    >
       <DialogTrigger asChild>
         <Button
           variant="ghost"

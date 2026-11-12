@@ -9,13 +9,18 @@ import { toast } from "sonner";
 import StatusBadge from "../chat/StatusBadge";
 import { useSocketStore } from "@/stores/useSocketStore";
 
-const FriendListModal = () => {
+interface FriendListModalProps {
+  onClose?: () => void;
+}
+
+const FriendListModal = ({ onClose }: FriendListModalProps) => {
   const { friends, unfriend } = useFriendStore();
   const { createConversation } = useChatStore();
   const { onlineUsers } = useSocketStore();
 
   const handleAddConversation = async (friendId: string) => {
-    await createConversation("direct", "", [friendId]);
+    const created = await createConversation("direct", "", [friendId]);
+    if (created) onClose?.();
   };
 
   const handleUnfriend = async (e: React.MouseEvent, friendId: string) => {

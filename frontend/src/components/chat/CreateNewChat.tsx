@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useFriendStore } from "@/stores/useFriendStore";
 import { Card } from "../ui/card";
 import { Dialog, DialogTrigger } from "../ui/dialog";
@@ -6,6 +7,7 @@ import FriendListModal from "../createNewChat/FriendListModal";
 
 const CreateNewChat = () => {
   const { getFriends } = useFriendStore();
+  const [open, setOpen] = useState(false);
 
   const handleGetFriends = async () => {
     await getFriends();
@@ -17,7 +19,10 @@ const CreateNewChat = () => {
         className="flex-1 p-3 glass hover:shadow-soft transition-smooth cursor-pointer group/card"
         onClick={handleGetFriends}
       >
-        <Dialog>
+        <Dialog
+          open={open}
+          onOpenChange={setOpen}
+        >
           <DialogTrigger>
             <div className="flex items-center gap-4">
               <div className="size-8 bg-gradient-chat rounded-full flex items-center justify-center group-hover/card:scale-110 transition-bounce">
@@ -29,7 +34,7 @@ const CreateNewChat = () => {
             </div>
           </DialogTrigger>
 
-          <FriendListModal />
+          <FriendListModal onClose={() => setOpen(false)} />
         </Dialog>
       </Card>
     </div>

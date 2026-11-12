@@ -73,7 +73,7 @@ export interface ChatState {
     type: "group" | "direct",
     name: string,
     memberIds: string[]
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   updateParticipantInfo: (
     userId: string,
     data: Partial<{ displayName: string; avatarUrl: string; statusVisible: boolean }>
