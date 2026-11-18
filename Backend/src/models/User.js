@@ -43,6 +43,19 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // true khi quyền sở hữu email đã được chứng minh: đăng nhập OAuth có
+    // email_verified, hoặc đặt lại mật khẩu thành công qua link gửi tới email.
+    // Đăng ký bằng mật khẩu → false (chưa có luồng xác minh email).
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    // Firebase UID đã liên kết với tài khoản này (Google/GitHub)
+    firebaseUids: {
+      type: [String],
+      index: true,
+      select: false,
+    },
     passwordResetToken: {
       type: String,
       select: false,

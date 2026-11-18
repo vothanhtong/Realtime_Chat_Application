@@ -6,15 +6,13 @@ import {
   deleteMessage,
   recallMessage,
 } from "../controllers/messageController.js";
-import {
-  checkFriendship,
-  checkGroupMembership,
-} from "../middlewares/friendMiddleware.js";
 
 const router = express.Router();
 
-router.post("/direct", checkFriendship, sendDirectMessage);
-router.post("/group", checkGroupMembership, sendGroupMessage);
+// Kiểm tra bạn bè / thành viên nhóm nằm trong services/messageService.js
+// (dùng chung với Socket "send-message") — không cần middleware riêng ở đây.
+router.post("/direct", sendDirectMessage);
+router.post("/group", sendGroupMessage);
 router.delete("/:messageId", deleteMessage);
 router.post("/:messageId/recall", recallMessage);
 
