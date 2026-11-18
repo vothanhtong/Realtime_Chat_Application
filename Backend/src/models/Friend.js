@@ -44,6 +44,9 @@ friendSchema.pre("save", function (next) {
 });
 
 friendSchema.index({ userA: 1, userB: 1 }, { unique: true });
+// Truy vấn "$or: [{ userA: me }, { userB: me }]" (danh sách bạn bè) cần index riêng
+// cho userB — compound index ở trên chỉ phục vụ được nhánh userA.
+friendSchema.index({ userB: 1 });
 
 const Friend = mongoose.model("Friend", friendSchema);
 

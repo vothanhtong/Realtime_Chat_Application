@@ -20,4 +20,12 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // Component shadcn/ui cố ý export kèm biến thể/hook (buttonVariants,
+    // badgeVariants, useSidebar...) — quy ước của shadcn, không tách file.
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

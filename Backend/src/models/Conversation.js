@@ -45,6 +45,10 @@ const conversationSchema = new mongoose.Schema(
       required: true,
     },
     group: { type: groupSchema },
+    // Chỉ có ở chat 1-1: `${minUserId}_${maxUserId}` (xem services/conversationService.js).
+    // Unique index chặn việc hai người nhắn đồng thời tạo ra 2 phòng trùng nhau.
+    // KHÔNG đặt default/null — sparse index chỉ bỏ qua document THIẾU field.
+    directKey: { type: String },
     lastMessageAt: { type: Date },
     seenBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     lastMessage: { type: lastMessageSchema, default: null },
@@ -59,6 +63,7 @@ const conversationSchema = new mongoose.Schema(
 
 // Fix: đúng field name "participants.userId"
 conversationSchema.index({ "participants.userId": 1, lastMessageAt: -1 });
+conversationSchema.index({ directKey: 1 }, { unique: true, sparse: true });
 
 const Conversation = mongoose.model("Conversation", conversationSchema);
 export default Conversation;

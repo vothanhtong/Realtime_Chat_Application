@@ -36,7 +36,8 @@ const messageSchema = new mongoose.Schema(
   }
 );
 
-messageSchema.index({ conversationId: 1, createdAt: -1 });
+// Khớp với sort { createdAt: -1, _id: -1 } của cursor pagination (getMessages)
+messageSchema.index({ conversationId: 1, createdAt: -1, _id: -1 });
 
 const Message = mongoose.model("Message", messageSchema);
 

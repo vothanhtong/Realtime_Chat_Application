@@ -4,7 +4,11 @@ import User from "../models/User.js";
 /**
  * Socket.IO authentication middleware.
  * Reads the JWT from socket.handshake.auth.token and attaches
- * the user document to socket.user.
+ * the user document to socket.data.user.
+ *
+ * socket.data (không phải socket.user) vì connectionStateRecovery với
+ * skipMiddlewares: true bỏ qua middleware khi khôi phục kết nối — Socket.IO chỉ
+ * khôi phục id, rooms và socket.data. Thuộc tính tự đặt như socket.user sẽ mất.
  */
 export const socketAuthMiddleware = async (socket, next) => {
   try {
@@ -26,7 +30,7 @@ export const socketAuthMiddleware = async (socket, next) => {
 
     if (!user) return next(new Error("Unauthorized: user không tồn tại"));
 
-    socket.user = user;
+    socket.data.user = user;
     next();
   } catch (error) {
     console.error("Lỗi socketAuthMiddleware:", error);
