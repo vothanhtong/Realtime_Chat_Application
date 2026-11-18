@@ -1,68 +1,86 @@
+import mongoose from "mongoose";
+import { getFriendIds } from "../utils/friendship.js";
+import { emitToUsers } from "../realtime/emitter.js";
+
 /**
- * In-memory presence service for real-time user tracking.
+ * In-memory presence (single process — see README for multi-instance notes).
  *
- * Rules:
- *   isOnline      = has active socket connection (tracked here)
- *   statusVisible = DB user preference ONLY (never modified here)
+ * Privacy rules:
+ *   - "user-online" / "user-offline" go ONLY to the user's friends (never io.emit)
+ *   - a user in incognito mode (statusVisible = false) never emits presence and
+ *     never appears in anyone's "online-users" list
+ *   - toggling incognito while online looks like going offline / coming back
+ *
+ * State mutations are synchronous (safe to call before any await in the socket
+ * handler); only the friend lookup + emit is async and fire-and-forget.
  */
 
-// userId → number of active socket connections (supports multi-tab)
+// userId → number of active sockets (multi-tab)
 const connectionCounts = new Map();
+// userId → visible? (synced from DB on connect / REST toggle)
+const visibility = new Map();
 
-// Set of currently online userIds (string)
-const onlineUsers = new Set();
+const isVisibleOnline = (userId) =>
+  (connectionCounts.get(userId) ?? 0) > 0 && visibility.get(userId) !== false;
 
-// userId → boolean visibility preference (synced from DB on connect)
-const userVisibility = new Map();
+const announceToFriends = (userId, event) => {
+  // Đang shutdown (DB đã đóng, io.close() ngắt các socket): không còn ai để báo
+  if (mongoose.connection.readyState !== 1) return;
+  getFriendIds(userId)
+    .then((friendIds) => emitToUsers(friendIds, event, userId))
+    .catch((err) => console.error(`presence ${event} error:`, err));
+};
 
 export const presenceService = {
-  /**
-   * Track a new connection and emit 'user-online' event
-   */
-  handleConnection: async (io, userId, statusVisible) => {
-    const prev = connectionCounts.get(userId) || 0;
+  handleConnection(userId, statusVisible) {
+    const prev = connectionCounts.get(userId) ?? 0;
     connectionCounts.set(userId, prev + 1);
+    visibility.set(userId, statusVisible !== false);
 
-    // Sync visibility preference from DB
-    userVisibility.set(userId, statusVisible !== false);
-
-    if (prev === 0) {
-      // First connection — user just came online
-      onlineUsers.add(userId);
-      io.emit("user-online", userId);
-    }
+    if (prev === 0 && isVisibleOnline(userId)) announceToFriends(userId, "user-online");
   },
 
-  /**
-   * Handle socket disconnection and emit 'user-offline' event
-   */
-  handleDisconnect: async (io, userId) => {
-    const count = (connectionCounts.get(userId) || 1) - 1;
-
-    if (count <= 0) {
-      // Last connection closed — user is offline
-      connectionCounts.delete(userId);
-      onlineUsers.delete(userId);
-      userVisibility.delete(userId);
-      io.emit("user-offline", userId);
-    } else {
-      // Still has other tabs/connections open
+  handleDisconnect(userId) {
+    const count = (connectionCounts.get(userId) ?? 1) - 1;
+    if (count > 0) {
       connectionCounts.set(userId, count);
+      return;
     }
+
+    const wasVisible = visibility.get(userId) !== false;
+    connectionCounts.delete(userId);
+    visibility.delete(userId);
+    if (wasVisible) announceToFriends(userId, "user-offline");
   },
 
-  /**
-   * Update visibility preference (Incognito Mode toggle)
-   * Only updates the in-memory cache — DB is the source of truth
-   */
-  updateVisibility: async (_io, userId, visible) => {
-    userVisibility.set(userId, visible);
+  /** Incognito toggle (called by userService after the DB update) */
+  setVisibility(userId, visible) {
+    const online = (connectionCounts.get(userId) ?? 0) > 0;
+    const wasVisible = visibility.get(userId) !== false;
+    if (!online) return; // nothing to announce; DB value is read on next connect
+
+    visibility.set(userId, visible);
+    if (wasVisible && !visible) announceToFriends(userId, "user-offline");
+    if (!wasVisible && visible) announceToFriends(userId, "user-online");
   },
 
-  /**
-   * Get the current list of online user IDs
-   */
-  getOnlineUsers: async () => {
-    return [...onlineUsers];
+  /** Online + visible friends of a user — the initial "online-users" payload */
+  async getOnlineFriends(userId) {
+    const friendIds = await getFriendIds(userId);
+    return friendIds.filter(isVisibleOnline);
+  },
+
+  /** Two users just became friends → show each other's presence immediately */
+  announceNewFriendship(a, b) {
+    const [ida, idb] = [a.toString(), b.toString()];
+    if (isVisibleOnline(ida)) emitToUsers([idb], "user-online", ida);
+    if (isVisibleOnline(idb)) emitToUsers([ida], "user-online", idb);
+  },
+
+  /** Friendship removed → stop showing each other as online */
+  announceFriendshipRemoved(a, b) {
+    const [ida, idb] = [a.toString(), b.toString()];
+    emitToUsers([idb], "user-offline", ida);
+    emitToUsers([ida], "user-offline", idb);
   },
 };

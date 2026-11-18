@@ -1,11 +1,11 @@
-import { useFriendStore } from "@/stores/useFriendStore";
+import { useFriends, useUnfriend } from "@/hooks/useFriends";
+import { useCreateConversation } from "@/hooks/useChatMutations";
 import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { MessageCircleMore, UserMinus, Users } from "lucide-react";
 import { Card } from "../ui/card";
 import UserAvatar from "../chat/UserAvatar";
-import { useChatStore } from "@/stores/useChatStore";
 import { Button } from "../ui/button";
-import { toast } from "sonner";
+import { EmptyState, ErrorState, LoadingState } from "../common/QueryStates";
 import StatusBadge from "../chat/StatusBadge";
 import { useSocketStore } from "@/stores/useSocketStore";
 
@@ -14,25 +14,28 @@ interface FriendListModalProps {
 }
 
 const FriendListModal = ({ onClose }: FriendListModalProps) => {
-  const { friends, unfriend } = useFriendStore();
-  const { createConversation } = useChatStore();
-  const { onlineUsers } = useSocketStore();
+  const {
+    data: friends = [],
+    isPending: friendsLoading,
+    isError: friendsError,
+    isRefetching,
+    refetch,
+  } = useFriends();
+  const { mutate: unfriend } = useUnfriend();
+  const { mutate: createConversation, isPending: creating } = useCreateConversation();
+  const onlineUsers = useSocketStore((s) => s.onlineUsers);
 
-  const handleAddConversation = async (friendId: string) => {
-    const created = await createConversation("direct", "", [friendId]);
-    if (created) onClose?.();
+  const handleAddConversation = (friendId: string) => {
+    if (creating) return; // chặn bấm liên tục
+    createConversation(
+      { type: "direct", name: "", memberIds: [friendId] },
+      { onSuccess: () => onClose?.() }
+    );
   };
 
-  const handleUnfriend = async (e: React.MouseEvent, friendId: string) => {
+  const handleUnfriend = (e: React.MouseEvent, friendId: string) => {
     e.stopPropagation();
-    if (window.confirm("Bạn có chắc chắn muốn hủy kết bạn?")) {
-      try {
-        await unfriend(friendId);
-        toast.success("Đã hủy kết bạn!");
-      } catch {
-        toast.error("Hủy kết bạn thất bại!");
-      }
-    }
+    if (window.confirm("Bạn có chắc chắn muốn hủy kết bạn?")) unfriend(friendId);
   };
 
   return (
@@ -98,11 +101,22 @@ const FriendListModal = ({ onClose }: FriendListModalProps) => {
             </Card>
           ))}
 
-          {friends.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              <Users className="size-12 mx-auto mb-3 opacity-50" />
-              Chưa có bạn bè. Thêm bạn vô để tám!
-            </div>
+          {friendsLoading && <LoadingState label="Đang tải danh sách bạn bè…" />}
+
+          {friendsError && (
+            <ErrorState
+              message="Không tải được danh sách bạn bè."
+              onRetry={() => void refetch()}
+              retrying={isRefetching}
+            />
+          )}
+
+          {!friendsLoading && !friendsError && friends.length === 0 && (
+            <EmptyState
+              icon={<Users className="size-10" />}
+              title="Chưa có bạn bè"
+              description="Bấm biểu tượng ＋ cạnh mục Bạn bè để tìm và kết bạn."
+            />
           )}
         </div>
       </div>

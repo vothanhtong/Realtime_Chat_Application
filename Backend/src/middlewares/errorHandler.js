@@ -5,7 +5,7 @@ import { AppError } from "../utils/AppError.js";
  * Must be registered LAST with app.use().
  */
 // eslint-disable-next-line no-unused-vars
-export const errorHandler = (err, _req, res, _next) => {
+export const errorHandler = (err, req, res, _next) => {
   // Operational errors (AppError) — safe to expose message
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({ message: err.message });
@@ -32,7 +32,19 @@ export const errorHandler = (err, _req, res, _next) => {
 
   // Multer errors
   if (err.name === "MulterError") {
-    return res.status(400).json({ message: err.message });
+    if (err.code === "LIMIT_FILE_SIZE") {
+      const limit = req.uploadLimitMB ? ` (tối đa ${req.uploadLimitMB}MB)` : "";
+      return res.status(413).json({ message: `File quá lớn${limit}` });
+    }
+    return res.status(400).json({ message: "File upload không hợp lệ" });
+  }
+
+  // body-parser: JSON body vượt express.json({ limit }) / JSON sai cú pháp
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({ message: "Dữ liệu gửi lên quá lớn" });
+  }
+  if (err.type === "entity.parse.failed") {
+    return res.status(400).json({ message: "JSON không hợp lệ" });
   }
 
   // Cloudinary rejects the uploaded file (corrupt/invalid image)
@@ -40,9 +52,9 @@ export const errorHandler = (err, _req, res, _next) => {
     return res.status(400).json({ message: "File ảnh không hợp lệ hoặc bị hỏng" });
   }
 
-  // JWT errors
+  // JWT errors — 401 (chưa xác thực); 403 dành riêng cho lỗi phân quyền
   if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
-    return res.status(403).json({ message: "Token không hợp lệ hoặc đã hết hạn" });
+    return res.status(401).json({ message: "Token không hợp lệ hoặc đã hết hạn" });
   }
 
   // Unknown / programming errors — don't leak details

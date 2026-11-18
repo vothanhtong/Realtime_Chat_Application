@@ -1,42 +1,78 @@
-import { useAuthStore } from "@/stores/useAuthStore";
 import type { Conversation } from "@/types/chat";
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "../ui/button";
 import { ImagePlus, Send, Loader2 } from "lucide-react";
 import { Input } from "../ui/input";
 import EmojiPicker from "./EmojiPicker";
-import { useChatStore } from "@/stores/useChatStore";
-import { useSocketStore } from "@/stores/useSocketStore";
 import { toast } from "sonner";
 import { userService } from "@/services/userService";
+import { useSendMessage } from "@/hooks/useChatMutations";
+import { emitStopTyping, emitTyping } from "@/realtime/socketClient";
+import { getErrorMessage } from "@/lib/utils";
+import { ACCEPT_IMAGE_ATTR, MAX_CHAT_IMAGE_SIZE_BYTES, validateImageFile } from "@/config/upload";
+
+// Gửi "typing" tối đa 1 lần / 2s khi đang gõ (thay vì mỗi phím);
+// tự gửi "stop-typing" sau 3s không gõ. Bên nhận tự hết hạn sau 6s.
+const TYPING_THROTTLE_MS = 2000;
+const TYPING_IDLE_MS = 3000;
 
 const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
-  const { user } = useAuthStore();
-  const { socket } = useSocketStore();
-  const { sendDirectMessage, sendGroupMessage } = useChatStore();
+  const { mutateAsync: send } = useSendMessage();
   const [value, setValue] = useState("");
   const [imageUploading, setImageUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingRef = useRef(false);
+  const lastTypingEmitRef = useRef(0);
+  const conversationId = selectedConvo._id;
 
-  if (!user) return;
+  const stopTyping = useCallback(() => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    if (isTypingRef.current) emitStopTyping(conversationId);
+    isTypingRef.current = false;
+    lastTypingEmitRef.current = 0;
+  }, [conversationId]);
+
+  // Đổi phòng / unmount → báo dừng typing cho phòng CŨ
+  // (cleanup chạy với stopTyping của lần render trước, giữ conversationId cũ)
+  useEffect(() => stopTyping, [stopTyping]);
+
+  const notifyTyping = () => {
+    const now = Date.now();
+    if (!isTypingRef.current || now - lastTypingEmitRef.current >= TYPING_THROTTLE_MS) {
+      emitTyping(conversationId);
+      lastTypingEmitRef.current = now;
+      isTypingRef.current = true;
+    }
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(stopTyping, TYPING_IDLE_MS);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setValue(e.target.value);
+    const next = e.target.value;
+    setValue(next);
 
-    if (socket && selectedConvo._id) {
-      socket.emit("typing", selectedConvo._id);
-
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = setTimeout(() => {
-        socket.emit("stop-typing", selectedConvo._id);
-      }, 2000);
+    if (next.trim()) {
+      notifyTyping();
+    } else {
+      stopTyping(); // xoá hết nội dung = không còn soạn tin
     }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Cùng giới hạn với backend (config/upload.ts ↔ Backend constants.js)
+    const invalid = validateImageFile(file, MAX_CHAT_IMAGE_SIZE_BYTES);
+    if (invalid) {
+      toast.error(invalid);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     try {
       setImageUploading(true);
@@ -45,17 +81,11 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
 
       const res = await userService.uploadChatImage(formData);
       if (res.url) {
-        if (selectedConvo.type === "direct") {
-          const participants = selectedConvo.participants;
-          const otherUser = participants.filter((p) => p._id !== user._id)[0];
-          await sendDirectMessage(otherUser._id, "", res.url);
-        } else {
-          await sendGroupMessage(selectedConvo._id, "", res.url);
-        }
+        await send({ conversation: selectedConvo, content: "", imgUrl: res.url });
       }
     } catch (error) {
       console.error(error);
-      toast.error("Gửi ảnh thất bại!");
+      toast.error(getErrorMessage(error, "Gửi ảnh thất bại!"));
     } finally {
       setImageUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -68,30 +98,26 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
     setValue("");
 
     // Stop typing immediately
-    if (socket && selectedConvo._id) {
-      socket.emit("stop-typing", selectedConvo._id);
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    }
+    stopTyping();
 
     try {
-      if (selectedConvo.type === "direct") {
-        const participants = selectedConvo.participants;
-        const otherUser = participants.filter((p) => p._id !== user._id)[0];
-        await sendDirectMessage(otherUser._id, currValue);
-      } else {
-        await sendGroupMessage(selectedConvo._id, currValue);
-      }
+      await send({ conversation: selectedConvo, content: currValue });
     } catch (error) {
       console.error(error);
-      toast.error("Lỗi xảy ra khi gửi tin nhắn. Bạn hãy thử lại!");
+      // Trả lại nội dung để người dùng không mất tin vừa gõ
+      setValue((v) => (v ? v : currValue));
+      toast.error(getErrorMessage(error, "Lỗi xảy ra khi gửi tin nhắn. Bạn hãy thử lại!"));
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      sendMessage();
-    }
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+    // Bộ gõ IME (Telex/VNI trên macOS, CJK...): Enter lúc đang ghép chữ chỉ để
+    // xác nhận ký tự — gửi lúc này sẽ mất/cắt dấu. keyCode 229 = Safari báo
+    // composition nhưng isComposing có thể đã false.
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    sendMessage();
   };
 
   return (
@@ -101,7 +127,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
         ref={fileInputRef}
         onChange={handleImageUpload}
         className="hidden"
-        accept="image/*"
+        accept={ACCEPT_IMAGE_ATTR}
       />
       <Button
         variant="ghost"
@@ -119,7 +145,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
 
       <div className="flex-1 relative">
         <Input
-          onKeyPress={handleKeyPress}
+          onKeyDown={handleKeyDown}
           value={value}
           onChange={handleInputChange}
           placeholder="Soạn tin nhắn..."

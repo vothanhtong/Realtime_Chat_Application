@@ -21,13 +21,15 @@ import AddFriendModal from "../chat/AddFriendModal";
 import DirectMessageList from "../chat/DirectMessageList";
 import { useThemeStore } from "@/stores/useThemeStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-import ConversationSkeleton from "../skeleton/ConversationSkeleton";
-import { useChatStore } from "@/stores/useChatStore";
+import { useShallow } from "zustand/react/shallow";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { isDark, toggleTheme } = useThemeStore();
-  const { user } = useAuthStore();
-  const { convoLoading } = useChatStore();
+  const { isDark, toggleTheme } = useThemeStore(
+    useShallow((s) => ({ isDark: s.isDark, toggleTheme: s.toggleTheme }))
+  );
+  const user = useAuthStore((s) => s.user);
+  // Loading / Error / Empty của danh sách hội thoại do từng list tự xử lý
+  // (ConversationListState) — sidebar không subscribe query hội thoại.
 
   return (
     <Sidebar
@@ -79,7 +81,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </div>
 
           <SidebarGroupContent>
-            {convoLoading ? <ConversationSkeleton /> : <GroupChatList />}
+            <GroupChatList />
           </SidebarGroupContent>
         </SidebarGroup>
 
@@ -94,7 +96,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupAction>
 
           <SidebarGroupContent>
-            {convoLoading ? <ConversationSkeleton /> : <DirectMessageList />}
+            <DirectMessageList />
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

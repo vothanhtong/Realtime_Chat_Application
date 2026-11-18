@@ -1,148 +1,57 @@
 import multer from "multer";
-import { v2 as cloudinary } from "cloudinary";
-import sharp from "sharp";
-import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
 import {
   ALLOWED_IMAGE_TYPES,
-  MAX_FILE_SIZE_BYTES,
-  AVATAR_SIZE,
-  AVATAR_QUALITY,
+  MAX_AVATAR_SIZE_BYTES,
+  MAX_CHAT_IMAGE_SIZE_BYTES,
 } from "../config/constants.js";
 import { AppError } from "../utils/AppError.js";
+import { inspectImage } from "../services/mediaService.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const UPLOADS_DIR = path.join(__dirname, "../../uploads/avatars");
+/**
+ * Upload pipelines:  multer (size limit + cheap mimetype pre-filter)
+ *                 →  verifyImageFile (REAL format from magic bytes)
+ *                 →  controller → userService → mediaService (resize/encode) → storageService
+ */
 
-// Ensure upload directory exists at startup
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
+const toMB = (bytes) => Math.round(bytes / 1024 / 1024);
 
-// ─── Cloudinary detection ─────────────────────────────────────────────────────
-
-const hasCloudinary = () =>
-  process.env.CLOUDINARY_CLOUD_NAME &&
-  process.env.CLOUDINARY_CLOUD_NAME !== "your_cloud_name" &&
-  process.env.CLOUDINARY_API_KEY &&
-  process.env.CLOUDINARY_API_SECRET;
-
-// ─── Multer ───────────────────────────────────────────────────────────────────
-
-export const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_FILE_SIZE_BYTES },
-  fileFilter: (_req, file, cb) => {
-    if (ALLOWED_IMAGE_TYPES.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new AppError(`Chỉ chấp nhận file ảnh: ${ALLOWED_IMAGE_TYPES.join(", ")}`, 400));
-    }
-  },
-});
-
-// ─── Image processing ─────────────────────────────────────────────────────────
-
-const processImage = (buffer) =>
-  sharp(buffer)
-    .resize(AVATAR_SIZE, AVATAR_SIZE, { fit: "cover", position: "center" })
-    .webp({ quality: AVATAR_QUALITY })
-    .toBuffer();
-
-// ─── Storage backends ─────────────────────────────────────────────────────────
-
-const uploadToCloudinary = (buffer, options = {}) =>
-  new Promise((resolve, reject) => {
-    const isAvatar = options.folder === "chat_app/avatars" || !options.folder;
-
-    const transformation = isAvatar
-      ? [
-          {
-            width: AVATAR_SIZE,
-            height: AVATAR_SIZE,
-            crop: "fill",
-            gravity: "face",
-            quality: "auto",
-            fetch_format: "auto",
-          },
-        ]
-      : [
-          {
-            quality: "auto",
-            fetch_format: "auto",
-          },
-        ];
-
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: options.folder || "chat_app/avatars",
-        resource_type: "image",
-        transformation,
-        ...options,
-      },
-      (error, result) => (error ? reject(error) : resolve(result))
-    );
-    stream.end(buffer);
+const createUploader = (maxBytes) =>
+  multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: maxBytes, files: 1 },
+    // Pre-filter on the client-declared type only to reject obvious junk early —
+    // the authoritative check is verifyImageFile below.
+    fileFilter: (_req, file, cb) => {
+      if (ALLOWED_IMAGE_TYPES.includes(file.mimetype)) cb(null, true);
+      else cb(new AppError("Chỉ chấp nhận file ảnh JPEG, PNG, WebP hoặc GIF", 400));
+    },
   });
 
-const saveToLocal = async (buffer, filename) => {
-  const processedBuffer = await processImage(buffer);
-  const webpFilename = filename.replace(/\.(jpg|jpeg|png|gif)$/i, ".webp");
-  const filePath = path.join(UPLOADS_DIR, webpFilename);
-
-  await fs.promises.writeFile(filePath, processedBuffer);
-
-  // Return a relative path — the frontend resolves the base URL from env
-  return {
-    secure_url: `/uploads/avatars/${webpFilename}`,
-    public_id: webpFilename,
-    source: "local",
-  };
-};
-
-// ─── Public API ───────────────────────────────────────────────────────────────
-
-/**
- * Upload an image buffer to Cloudinary (if configured) or local disk.
- * @param {Buffer} buffer
- * @param {{ public_id?: string, mimetype?: string, overwrite?: boolean }} options
- */
-export const uploadImage = async (buffer, options = {}) => {
-  if (hasCloudinary()) {
-    return uploadToCloudinary(buffer, options);
-  }
-
-  const ext = options.mimetype ? options.mimetype.split("/")[1] : "jpg";
-  const filename = options.public_id
-    ? `${options.public_id}.${ext}`
-    : `avatar_${Date.now()}.${ext}`;
-
-  return saveToLocal(buffer, filename);
-};
-
-/**
- * Delete an image from Cloudinary or local disk.
- * Silently ignores missing files.
- * @param {string} publicId
- */
-export const deleteImage = async (publicId) => {
-  if (!publicId) return;
-
-  if (hasCloudinary() && !publicId.includes(".")) {
-    try {
-      await cloudinary.uploader.destroy(publicId);
-    } catch (err) {
-      console.error("Lỗi khi xóa ảnh Cloudinary:", err);
-    }
-    return;
-  }
-
-  // Local file
-  const filePath = path.join(UPLOADS_DIR, publicId);
+/** Reject files whose bytes are not an allowed image, whatever their mimetype says */
+const verifyImageFile = async (req, _res, next) => {
   try {
-    await fs.promises.unlink(filePath);
-  } catch (err) {
-    if (err.code !== "ENOENT") console.error("Lỗi khi xóa file local:", err);
+    if (!req.file) throw new AppError("Không có file được upload", 400);
+    req.imageMetadata = await inspectImage(req.file.buffer);
+    next();
+  } catch (error) {
+    next(error);
   }
 };
+
+/** Attach the size limit to the request so errorHandler can report it (413) */
+const withLimit = (maxBytes) => (req, _res, next) => {
+  req.uploadLimitMB = toMB(maxBytes);
+  next();
+};
+
+export const avatarUpload = [
+  withLimit(MAX_AVATAR_SIZE_BYTES),
+  createUploader(MAX_AVATAR_SIZE_BYTES).single("file"),
+  verifyImageFile,
+];
+
+export const chatImageUpload = [
+  withLimit(MAX_CHAT_IMAGE_SIZE_BYTES),
+  createUploader(MAX_CHAT_IMAGE_SIZE_BYTES).single("file"),
+  verifyImageFile,
+];
