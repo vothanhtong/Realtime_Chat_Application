@@ -1,9 +1,49 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import axios from "axios";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+
+// ─── Shared helpers (trước đây bị copy ở nhiều component/store) ───────────────
+
+const BACKEND_ORIGIN =
+  import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, "") || "http://localhost:5001";
+
+/**
+ * Avatar/ảnh lưu local trên backend được trả về dạng đường dẫn tương đối
+ * (/uploads/...) → ghép với origin của backend. URL tuyệt đối (Cloudinary,
+ * Google, GitHub...) giữ nguyên.
+ */
+export const resolveAvatarUrl = (url?: string | null): string | undefined => {
+  if (!url) return undefined;
+  if (url.startsWith("/uploads")) return `${BACKEND_ORIGIN}${url}`;
+  if (url.includes("/uploads/avatars/")) {
+    const filename = url.split("/uploads/avatars/").pop();
+    return `${BACKEND_ORIGIN}/uploads/avatars/${filename}`;
+  }
+  return url;
+};
+
+/** Thêm tham số thời gian để trình duyệt không dùng ảnh cũ trong cache */
+export const withCacheBust = (url?: string | null): string | undefined =>
+  url ? `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}` : undefined;
+
+/**
+ * Lấy thông báo lỗi hiển thị được cho người dùng:
+ * message từ backend (AppError) → message của Error → fallback.
+ */
+export const getErrorMessage = (error: unknown, fallback = "Đã có lỗi xảy ra. Hãy thử lại!") => {
+  if (axios.isAxiosError(error)) {
+    const serverMessage = (error.response?.data as { message?: unknown } | undefined)?.message;
+    if (typeof serverMessage === "string" && serverMessage) return serverMessage;
+    if (!error.response) return "Không thể kết nối tới máy chủ. Kiểm tra mạng và thử lại!";
+    return fallback;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+};
 
 export const formatOnlineTime = (date: Date) => {
   const now = new Date();

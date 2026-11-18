@@ -53,6 +53,11 @@ export interface Message {
   imgUrl?: string | null;
   updatedAt?: string | null;
   createdAt: string;
-  isOwn?: boolean;
   isRecalled?: boolean;
+}
+
+/** One page of GET /conversations/:id/messages (messages in chronological order) */
+export interface MessagesPage {
+  messages: Message[];
+  nextCursor: string | null;
 }

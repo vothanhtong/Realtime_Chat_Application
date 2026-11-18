@@ -8,9 +8,8 @@ import {
 } from "../ui/dialog";
 import { UserPlus } from "lucide-react";
 import type { User } from "@/types/user";
-import { useFriendStore } from "@/stores/useFriendStore";
+import { useSearchUser, useSendFriendRequest } from "@/hooks/useFriends";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import SearchForm from "@/components/AddFriendModal/SearchForm";
 import SendFriendRequestForm from "@/components/AddFriendModal/SendFriendRequestForm";
 
@@ -23,7 +22,9 @@ const AddFriendModal = () => {
   const [isFound, setIsFound] = useState<boolean | null>(null);
   const [searchUser, setSearchUser] = useState<User>();
   const [searchedUsername, setSearchedUsername] = useState("");
-  const { loading, searchByUsername, addFriend } = useFriendStore();
+  const { mutateAsync: searchByUsername, isPending: searching } = useSearchUser();
+  const { mutateAsync: sendRequest, isPending: sending } = useSendFriendRequest();
+  const loading = searching || sending;
 
   const {
     register,
@@ -54,9 +55,8 @@ const AddFriendModal = () => {
         setIsFound(false);
       }
     } catch {
-      // Network/server error — show not found to avoid leaking details
+      // lỗi mạng/server đã được toast trong useSearchUser
       setIsFound(false);
-      toast.error("Tìm kiếm thất bại. Vui lòng thử lại!");
     }
   });
 
@@ -64,14 +64,10 @@ const AddFriendModal = () => {
     if (!searchUser) return;
 
     try {
-      const message = await addFriend(searchUser._id, data.message.trim());
-      toast.success(message);
+      await sendRequest({ to: searchUser._id, message: data.message.trim() });
       handleCancel();
-    } catch (error: unknown) {
-      const msg =
-        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Gửi lời mời kết bạn thất bại. Hãy thử lại!";
-      toast.error(msg);
+    } catch {
+      // lỗi đã được toast trong useSendFriendRequest
     }
   });
 

@@ -6,11 +6,11 @@ import {
   markAsSeen,
   deleteConversation,
 } from "../controllers/conversationController.js";
-import { checkFriendship } from "../middlewares/friendMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", checkFriendship, createConversation);
+// Kiểm tra bạn bè nằm trong conversationService.create
+router.post("/", createConversation);
 router.get("/", getConversations);
 router.get("/:conversationId/messages", getMessages);
 router.patch("/:conversationId/seen", markAsSeen);

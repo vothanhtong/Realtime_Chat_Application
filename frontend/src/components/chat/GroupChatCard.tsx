@@ -1,3 +1,5 @@
+import { memo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useChatStore } from "@/stores/useChatStore";
 import type { Conversation } from "@/types/chat";
@@ -6,20 +8,19 @@ import UnreadCountBadge from "./UnreadCountBadge";
 import GroupChatAvatar from "./GroupChatAvatar";
 
 const GroupChatCard = ({ convo }: { convo: Conversation }) => {
-  const { user } = useAuthStore();
-  const { activeConversationId, setActiveConversation, messages, fetchMessages } =
-    useChatStore();
+  const myId = useAuthStore((s) => s.user?._id);
+  // Selector hẹp: chỉ re-render khi CHÍNH card này đổi trạng thái active
+  const { isActive, selectConversation } = useChatStore(
+    useShallow((s) => ({
+      isActive: s.selectedConversationId === convo._id,
+      selectConversation: s.selectConversation,
+    }))
+  );
 
-  if (!user) return null;
+  if (!myId) return null;
 
-  const unreadCount = convo.unreadCounts[user._id];
+  const unreadCount = convo.unreadCounts?.[myId] ?? 0;
   const name = convo.group?.name ?? "";
-  const handleSelectConversation = async (id: string) => {
-    setActiveConversation(id);
-    if (!messages[id]) {
-      await fetchMessages();
-    }
-  };
 
   return (
     <ChatCard
@@ -30,8 +31,8 @@ const GroupChatCard = ({ convo }: { convo: Conversation }) => {
           ? new Date(convo.lastMessage.createdAt)
           : undefined
       }
-      isActive={activeConversationId === convo._id}
-      onSelect={handleSelectConversation}
+      isActive={isActive}
+      onSelect={selectConversation}
       unreadCount={unreadCount}
       leftSection={
         <>
@@ -51,4 +52,4 @@ const GroupChatCard = ({ convo }: { convo: Conversation }) => {
   );
 };
 
-export default GroupChatCard;
+export default memo(GroupChatCard);

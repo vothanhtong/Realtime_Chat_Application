@@ -1,10 +1,15 @@
-import { useFriendStore } from "@/stores/useFriendStore";
+import { useFriendRequests } from "@/hooks/useFriends";
 import FriendRequestItem from "./FriendRequestItem";
 
 const SentRequests = () => {
-  const { sentList } = useFriendStore();
+  const { data, isPending } = useFriendRequests();
+  const sentList = data?.sent ?? [];
 
-  if (!sentList || sentList.length === 0) {
+  if (isPending) {
+    return <p className="text-sm text-muted-foreground">Đang tải...</p>;
+  }
+
+  if (sentList.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
         Bạn chưa gửi lời mời kết bạn nào.

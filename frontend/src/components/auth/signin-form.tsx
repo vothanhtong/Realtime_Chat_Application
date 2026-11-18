@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { signIn } from "@/lib/session";
 import { useNavigate, Link } from "react-router";
 import { useState } from "react";
 import { Eye, EyeOff, Moon, Sun } from "lucide-react";
@@ -19,8 +19,8 @@ const signInSchema = z.object({
 type SignInFormValues = z.infer<typeof signInSchema>;
 
 export function SigninForm({ className, ...props }: React.ComponentProps<"div">) {
-  const { signIn } = useAuthStore();
-  const { isDark, toggleTheme } = useThemeStore();
+  const isDark = useThemeStore((s) => s.isDark);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 

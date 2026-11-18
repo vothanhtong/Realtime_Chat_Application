@@ -10,15 +10,16 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useThemeStore } from "@/stores/useThemeStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useUserStore } from "@/stores/useUserStore";
+import { useUpdateStatusVisibility } from "@/hooks/useProfile";
 
 const PreferencesForm = () => {
-  const { isDark, toggleTheme } = useThemeStore();
-  const { user } = useAuthStore();
-  const { updateStatusVisibility } = useUserStore();
+  const isDark = useThemeStore((s) => s.isDark);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
+  const user = useAuthStore((s) => s.user);
+  const { mutate: updateStatusVisibility, isPending } = useUpdateStatusVisibility();
 
-  const handleStatusToggle = async (checked: boolean) => {
-    await updateStatusVisibility(checked);
+  const handleStatusToggle = (checked: boolean) => {
+    if (!isPending) updateStatusVisibility(checked); // chặn bấm liên tục
   };
 
   return (

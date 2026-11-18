@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { signUp } from "@/lib/session";
 import { useNavigate, Link } from "react-router";
 import { useState } from "react";
 import { Eye, EyeOff, Moon, Sun } from "lucide-react";
@@ -26,8 +26,8 @@ const signUpSchema = z.object({
 type SignUpFormValues = z.infer<typeof signUpSchema>;
 
 export function SignupForm({ className, ...props }: React.ComponentProps<"div">) {
-  const { signUp } = useAuthStore();
-  const { isDark, toggleTheme } = useThemeStore();
+  const isDark = useThemeStore((s) => s.isDark);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -43,7 +43,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
       await signUp(data.username, data.password, data.email, data.firstName, data.lastName);
       navigate("/signin");
     } catch {
-      // lỗi đã được handle trong store
+      // lỗi đã được toast trong lib/session
     }
   };
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,7 +6,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useFriendStore } from "@/stores/useFriendStore";
 import SentRequests from "./SentRequests";
 import ReceivedRequests from "./ReceivedRequests";
 
@@ -17,19 +16,8 @@ interface FriendRequestDialogProps {
 
 const FriendRequestDialog = ({ open, setOpen }: FriendRequestDialogProps) => {
   const [tab, setTab] = useState("received");
-  const { getAllFriendRequests } = useFriendStore();
-
-  useEffect(() => {
-    const loadRequest = async () => {
-      try {
-        await getAllFriendRequests();
-      } catch (error) {
-        console.error("Lỗi xảy ra khi load requests", error);
-      }
-    };
-
-    loadRequest();
-  }, []);
+  // Dữ liệu lời mời: useFriendRequests() trong từng tab (TanStack Query, socket
+  // "new-friend-request" tự invalidate) — không còn useEffect fetch thủ công
 
   return (
     <Dialog

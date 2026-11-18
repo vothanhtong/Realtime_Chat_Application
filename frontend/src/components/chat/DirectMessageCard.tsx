@@ -1,3 +1,5 @@
+import { memo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import type { Conversation } from "@/types/chat";
 import ChatCard from "./ChatCard";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -9,25 +11,22 @@ import UnreadCountBadge from "./UnreadCountBadge";
 import { useSocketStore } from "@/stores/useSocketStore";
 
 const DirectMessageCard = ({ convo }: { convo: Conversation }) => {
-  const { user } = useAuthStore();
-  const { activeConversationId, setActiveConversation, messages, fetchMessages } =
-    useChatStore();
-  const { onlineUsers } = useSocketStore();
+  const myId = useAuthStore((s) => s.user?._id);
+  const otherUser = convo.participants.find((p) => p._id !== myId);
 
-  if (!user) return null;
+  // Selector hẹp: card chỉ re-render khi CHÍNH NÓ đổi active / người kia đổi online
+  const { isActive, selectConversation } = useChatStore(
+    useShallow((s) => ({
+      isActive: s.selectedConversationId === convo._id,
+      selectConversation: s.selectConversation,
+    }))
+  );
+  const isOnline = useSocketStore((s) => !!otherUser && s.onlineUsers.includes(otherUser._id));
 
-  const otherUser = convo.participants.find((p) => p._id !== user._id);
-  if (!otherUser) return null;
+  if (!myId || !otherUser) return null;
 
-  const unreadCount = convo.unreadCounts[user._id];
+  const unreadCount = convo.unreadCounts?.[myId] ?? 0;
   const lastMessage = convo.lastMessage?.content ?? "";
-
-  const handleSelectConversation = async (id: string) => {
-    setActiveConversation(id);
-    if (!messages[id]) {
-      await fetchMessages();
-    }
-  };
 
   return (
     <ChatCard
@@ -38,8 +37,8 @@ const DirectMessageCard = ({ convo }: { convo: Conversation }) => {
           ? new Date(convo.lastMessage.createdAt)
           : undefined
       }
-      isActive={activeConversationId === convo._id}
-      onSelect={handleSelectConversation}
+      isActive={isActive}
+      onSelect={selectConversation}
       unreadCount={unreadCount}
       leftSection={
         <>
@@ -52,9 +51,7 @@ const DirectMessageCard = ({ convo }: { convo: Conversation }) => {
           />
           <StatusBadge
             status={
-              onlineUsers.includes(otherUser._id) && otherUser.statusVisible !== false 
-                ? "online" 
-                : "offline"
+              isOnline && otherUser.statusVisible !== false ? "online" : "offline"
             }
           />
           {unreadCount > 0 && <UnreadCountBadge unreadCount={unreadCount} />}
@@ -74,4 +71,5 @@ const DirectMessageCard = ({ convo }: { convo: Conversation }) => {
   );
 };
 
-export default DirectMessageCard;
+// memo: danh sách re-render khi 1 hội thoại đổi, các card khác (convo ref không đổi) bỏ qua
+export default memo(DirectMessageCard);

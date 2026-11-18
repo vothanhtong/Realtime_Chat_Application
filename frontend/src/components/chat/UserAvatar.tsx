@@ -1,4 +1,5 @@
-import { cn } from "@/lib/utils";
+import { memo } from "react";
+import { cn, resolveAvatarUrl } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 interface IUserAvatarProps {
@@ -9,21 +10,6 @@ interface IUserAvatarProps {
   statusVisible?: boolean;
   isOwn?: boolean;
 }
-
-// Nếu URL là relative path, thêm backend base URL vào
-const resolveAvatarUrl = (url?: string) => {
-  if (!url) return undefined;
-  if (url.startsWith("/uploads")) {
-    const base = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5001";
-    return `${base}${url}`;
-  }
-  if (url.includes("/uploads/avatars/")) {
-    const base = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5001";
-    const filename = url.split("/uploads/avatars/").pop();
-    return `${base}/uploads/avatars/${filename}`;
-  }
-  return url;
-};
 
 const UserAvatar = ({
   type,
@@ -67,4 +53,4 @@ const UserAvatar = ({
   );
 };
 
-export default UserAvatar;
+export default memo(UserAvatar);

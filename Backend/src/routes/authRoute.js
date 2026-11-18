@@ -1,24 +1,14 @@
 import express from "express";
 import {
-  refreshToken,
+  signUp,
   signIn,
   signOut,
-  signUp,
-} from "../controllers/authController.js";
-import {
-  googleAuth,
-  googleCallback,
-  githubAuth,
-  githubCallback,
-} from "../controllers/oauthController.js";
-import {
+  refreshToken,
   googleOAuth,
   githubOAuth,
-} from "../controllers/firebaseOAuthController.js";
-import {
   forgotPassword,
   resetPassword,
-} from "../controllers/passwordController.js";
+} from "../controllers/authController.js";
 
 const router = express.Router();
 
@@ -32,14 +22,8 @@ router.post("/refresh", refreshToken);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 
-// Firebase OAuth (NEW - recommended)
+// Firebase OAuth (luồng OAuth duy nhất)
 router.post("/oauth/google", googleOAuth);
 router.post("/oauth/github", githubOAuth);
-
-// Passport OAuth (OLD - for backward compatibility)
-router.get("/google", googleAuth);
-router.get("/google/callback", googleCallback);
-router.get("/github", githubAuth);
-router.get("/github/callback", githubCallback);
 
 export default router;

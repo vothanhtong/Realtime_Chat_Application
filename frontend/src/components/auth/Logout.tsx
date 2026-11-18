@@ -1,18 +1,14 @@
 import { Button } from "../ui/button";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { signOut } from "@/lib/session";
 import { LogOut } from "lucide-react";
 import { useNavigate } from "react-router";
 
 const Logout = () => {
-  const { signOut } = useAuthStore();
   const navigate = useNavigate();
   const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate("/signin");
-    } catch (error) {
-      console.error(error);
-    }
+    // signOut luôn xoá phiên phía client (kể cả khi server lỗi) → App.tsx dọn socket/cache
+    await signOut();
+    navigate("/signin");
   };
 
   return (

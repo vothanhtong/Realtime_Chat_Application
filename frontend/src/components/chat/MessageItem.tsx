@@ -1,5 +1,6 @@
+import { memo } from "react";
 import { cn, formatMessageTime } from "@/lib/utils";
-import type { Conversation, Message, Participant } from "@/types/chat";
+import type { Message, Participant } from "@/types/chat";
 import UserAvatar from "./UserAvatar";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
@@ -10,41 +11,46 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { useChatStore } from "@/stores/useChatStore";
 import { Button } from "../ui/button";
 import OptimizedImage from "./OptimizedImage";
 
+/**
+ * Props are deliberately "narrow" and stable so React.memo can skip rows:
+ *  - prevMessage instead of the whole messages array (array changes on every new message)
+ *  - participant instead of the whole conversation
+ *  - status only on the last own message (undefined for every other row)
+ *  - callbacks are memoised by the parent and take the message id
+ */
 interface MessageItemProps {
   message: Message;
-  index: number;
-  messages: Message[];
-  selectedConvo: Conversation;
-  lastMessageStatus: "delivered" | "seen";
+  prevMessage?: Message;
+  isOwn: boolean;
+  participant?: Participant;
+  status?: "delivered" | "seen";
   onImageClick: (url: string) => void;
+  onRecall: (messageId: string) => void;
+  onDelete: (messageId: string) => void;
 }
+
+const FIVE_MINUTES = 5 * 60 * 1000;
 
 const MessageItem = ({
   message,
-  index,
-  messages,
-  selectedConvo,
-  lastMessageStatus,
+  prevMessage: prev,
+  isOwn,
+  participant,
+  status,
   onImageClick,
+  onRecall,
+  onDelete,
 }: MessageItemProps) => {
-  const { deleteMessage, recallMessage } = useChatStore();
-  const prev = index + 1 < messages.length ? messages[index + 1] : undefined;
-
+  // Hiện mốc thời gian ở tin đầu tiên, hoặc khi cách tin liền trước > 5 phút
   const isShowTime =
-    index === 0 ||
-    new Date(message.createdAt).getTime() -
-      new Date(prev?.createdAt || 0).getTime() >
-      300000; // 5 phút
+    !prev ||
+    new Date(message.createdAt).getTime() - new Date(prev.createdAt).getTime() > FIVE_MINUTES;
 
+  // Bắt đầu một cụm tin mới (hiện avatar) khi có mốc thời gian hoặc đổi người gửi
   const isGroupBreak = isShowTime || message.senderId !== prev?.senderId;
-
-  const participant = selectedConvo.participants.find(
-    (p: Participant) => p._id.toString() === message.senderId.toString()
-  );
 
   return (
     <>
@@ -58,11 +64,11 @@ const MessageItem = ({
       <div
         className={cn(
           "flex gap-2 group mt-1",
-          message.isOwn ? "justify-end" : "justify-start"
+          isOwn ? "justify-end" : "justify-start"
         )}
       >
         {/* avatar */}
-        {!message.isOwn && (
+        {!isOwn && (
           <div className="w-8">
             {isGroupBreak && (
               <UserAvatar
@@ -80,11 +86,11 @@ const MessageItem = ({
         <div
           className={cn(
             "max-w-[75vw] sm:max-w-sm lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl space-y-1 flex flex-col",
-            message.isOwn ? "items-end" : "items-start"
+            isOwn ? "items-end" : "items-start"
           )}
         >
           <div className="flex items-center gap-1 group/item">
-            {message.isOwn && (
+            {isOwn && (
               <div className="opacity-0 group-hover/item:opacity-100 transition-opacity">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -100,7 +106,7 @@ const MessageItem = ({
                     {!message.isRecalled && (
                       <DropdownMenuItem
                         className="text-orange-500 cursor-pointer"
-                        onClick={() => recallMessage(message._id)}
+                        onClick={() => onRecall(message._id)}
                       >
                         <Undo2 className="mr-2 size-4" />
                         Thu hồi
@@ -108,7 +114,7 @@ const MessageItem = ({
                     )}
                     <DropdownMenuItem
                       className="text-destructive cursor-pointer"
-                      onClick={() => deleteMessage(message._id)}
+                      onClick={() => onDelete(message._id)}
                     >
                       <Trash2 className="mr-2 size-4" />
                       Xóa
@@ -121,7 +127,7 @@ const MessageItem = ({
             <div
               className={cn(
                 "flex flex-col gap-1.5",
-                message.isOwn ? "items-end" : "items-start"
+                isOwn ? "items-end" : "items-start"
               )}
             >
               {message.imgUrl && !message.isRecalled && (
@@ -136,7 +142,7 @@ const MessageItem = ({
                 <Card
                   className={cn(
                     "px-4 py-2.5",
-                    message.isOwn
+                    isOwn
                       ? "chat-bubble-sent border-0"
                       : "chat-bubble-received",
                     message.isRecalled && "bg-muted/50 border border-muted"
@@ -158,17 +164,17 @@ const MessageItem = ({
           </div>
 
           {/* seen/ delivered */}
-          {message.isOwn && message._id === selectedConvo.lastMessage?._id && (
+          {status && (
             <Badge
               variant="outline"
               className={cn(
                 "text-xs px-1.5 py-0.5 h-4 border-0",
-                lastMessageStatus === "seen"
+                status === "seen"
                   ? "bg-primary/20 text-primary"
                   : "bg-muted text-muted-foreground"
               )}
             >
-              {lastMessageStatus === "seen" ? "Đã xem" : "Đã chuyển"}
+              {status === "seen" ? "Đã xem" : "Đã chuyển"}
             </Badge>
           )}
         </div>
@@ -177,4 +183,4 @@ const MessageItem = ({
   );
 };
 
-export default MessageItem;
+export default memo(MessageItem);

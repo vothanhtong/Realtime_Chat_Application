@@ -1,10 +1,12 @@
-import { SidebarInset } from "../ui/sidebar";
-import ChatWindowHeader from "./ChatWindowHeader";
+import { SidebarInset, SidebarTrigger } from "../ui/sidebar";
 
 const ChatWelcomeScreen = () => {
   return (
     <SidebarInset className="flex w-full h-full bg-transparent">
-      <ChatWindowHeader />
+      {/* Mobile: nút mở sidebar khi chưa chọn cuộc trò chuyện */}
+      <header className="md:hidden sticky top-0 z-10 flex items-center gap-2 px-4 py-2 w-full">
+        <SidebarTrigger className="-ml-1 text-foreground" />
+      </header>
       <div className="flex bg-primary-foreground rounded-none md:rounded-2xl flex-1 items-center justify-center p-4">
         <div className="text-center px-4">
           <div className="size-16 sm:size-24 mx-auto mb-4 sm:mb-6 bg-gradient-chat rounded-full flex items-center justify-center shadow-glow pulse-ring">

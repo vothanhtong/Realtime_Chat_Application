@@ -22,21 +22,10 @@ import { useState } from "react";
 import FriendRequestDialog from "../friendRequest/FriendRequestDialog";
 import ProfileDialog from "../profile/ProfileDialog";
 import { useSocketStore } from "@/stores/useSocketStore";
-import { cn } from "@/lib/utils";
-
-/** Resolve relative avatar paths to full URLs (mirrors UserAvatar logic) */
-const resolveAvatarUrl = (url?: string): string | undefined => {
-  if (!url) return undefined;
-  if (url.startsWith("/uploads") || url.includes("/uploads/avatars/")) {
-    const base = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5001";
-    const filename = url.split("/uploads/avatars/").pop();
-    return `${base}/uploads/avatars/${filename}`;
-  }
-  return url;
-};
+import { cn, resolveAvatarUrl } from "@/lib/utils";
 
 export function NavUser({ user }: { user: User }) {
-  const { socket } = useSocketStore();
+  const isConnected = useSocketStore((s) => s.status === "connected");
   const { isMobile } = useSidebar();
   const [friendRequestOpen, setfriendRequestOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -65,7 +54,7 @@ export function NavUser({ user }: { user: User }) {
                   </Avatar>
                   <div className={cn(
                     "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-sidebar ring-1 ring-black/5",
-                    socket?.connected ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-slate-400"
+                    isConnected ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-slate-400"
                   )} />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">

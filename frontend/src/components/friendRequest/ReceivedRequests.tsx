@@ -1,12 +1,19 @@
-import { useFriendStore } from "@/stores/useFriendStore";
+import { useAcceptFriendRequest, useDeclineFriendRequest, useFriendRequests } from "@/hooks/useFriends";
 import FriendRequestItem from "./FriendRequestItem";
 import { Button } from "../ui/button";
-import { toast } from "sonner";
 
 const ReceivedRequests = () => {
-  const { acceptRequest, declineRequest, loading, receivedList } = useFriendStore();
+  const { data, isPending } = useFriendRequests();
+  const accept = useAcceptFriendRequest();
+  const decline = useDeclineFriendRequest();
+  const loading = accept.isPending || decline.isPending;
+  const receivedList = data?.received ?? [];
 
-  if (!receivedList || receivedList.length === 0) {
+  if (isPending) {
+    return <p className="text-sm text-muted-foreground">Đang tải...</p>;
+  }
+
+  if (receivedList.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
         Bạn chưa có lời mời kết bạn nào.
@@ -14,23 +21,9 @@ const ReceivedRequests = () => {
     );
   }
 
-  const handleAccept = async (requestId: string) => {
-    try {
-      await acceptRequest(requestId);
-      toast.success("Đã đồng ý kết bạn thành công");
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const handleDecline = async (requestId: string) => {
-    try {
-      await declineRequest(requestId);
-      toast.info("Đã từ chối kết bạn");
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  // Toast thành công/thất bại nằm trong mutation (trước đây báo thành công cả khi lỗi)
+  const handleAccept = (requestId: string) => accept.mutate(requestId);
+  const handleDecline = (requestId: string) => decline.mutate(requestId);
 
   return (
     <div className="space-y-3 mt-4">

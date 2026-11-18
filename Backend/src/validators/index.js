@@ -1,4 +1,6 @@
 import { AppError } from "../utils/AppError.js";
+import { isAllowedImageUrl } from "../utils/imageUrl.js";
+import { MAX_MESSAGE_LENGTH } from "../config/constants.js";
 
 /**
  * Validation schemas — plain objects with validate() methods.
@@ -28,7 +30,11 @@ const minLen = (value, min, name) => {
   if (value.length < min) throw new AppError(`${name} phải có ít nhất ${min} ký tự`, 400);
 };
 
-export const isValidObjectId = (id) => MONGO_ID_RE.test(id);
+export const isValidObjectId = (id) => typeof id === "string" && MONGO_ID_RE.test(id);
+
+// Domain dành riêng cho tài khoản GitHub không có email đã xác minh
+// (xem services/authService.js) — cấm đăng ký thủ công để không ai "chiếm chỗ" trước.
+export const RESERVED_EMAIL_DOMAIN = "github.local";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const validateSignUp = (body) => {
@@ -54,6 +60,9 @@ export const validateSignUp = (body) => {
   maxLen(lastName.trim(), 50, "Họ");
 
   if (!EMAIL_RE.test(email)) throw new AppError("Email không hợp lệ", 400);
+  if (email.trim().toLowerCase().endsWith(`@${RESERVED_EMAIL_DOMAIN}`)) {
+    throw new AppError("Email không hợp lệ", 400);
+  }
 };
 
 export const validateSignIn = (body) => {
@@ -108,12 +117,30 @@ export const validateSetNickname = (body) => {
 };
 
 // ─── Message ──────────────────────────────────────────────────────────────────
-export const validateSendMessage = (body) => {
-  const { content } = body;
-  required(content, "Nội dung tin nhắn");
-  isString(content, "Nội dung tin nhắn");
-  if (!content.trim()) throw new AppError("Nội dung tin nhắn không được để trống", 400);
-  maxLen(content.trim(), 5000, "Nội dung tin nhắn");
+/**
+ * Validates and normalizes a message payload (shared by REST & Socket).
+ * - content: optional string, trimmed, max MAX_MESSAGE_LENGTH
+ * - imgUrl:  optional, must point to this system's image storage
+ * - at least one of the two must be present
+ * @returns {{ content: string, imgUrl: string | undefined }}
+ */
+export const validateMessagePayload = ({ content, imgUrl }) => {
+  if (content !== undefined && content !== null) isString(content, "Nội dung tin nhắn");
+  const text = (content ?? "").trim();
+  maxLen(text, MAX_MESSAGE_LENGTH, "Nội dung tin nhắn");
+
+  let image;
+  if (imgUrl !== undefined && imgUrl !== null && imgUrl !== "") {
+    isString(imgUrl, "URL ảnh");
+    if (!isAllowedImageUrl(imgUrl)) throw new AppError("URL ảnh không hợp lệ", 400);
+    image = imgUrl;
+  }
+
+  if (!text && !image) {
+    throw new AppError("Tin nhắn phải có nội dung hoặc hình ảnh", 400);
+  }
+
+  return { content: text, imgUrl: image };
 };
 
 // ─── Conversation ─────────────────────────────────────────────────────────────

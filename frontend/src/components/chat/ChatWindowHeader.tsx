@@ -1,5 +1,7 @@
+import { useShallow } from "zustand/react/shallow";
 import { useChatStore } from "@/stores/useChatStore";
 import type { Conversation } from "@/types/chat";
+import type { TypingUser } from "@/types/store";
 import { SidebarTrigger } from "../ui/sidebar";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { Separator } from "../ui/separator";
@@ -8,31 +10,26 @@ import StatusBadge from "./StatusBadge";
 import GroupChatAvatar from "./GroupChatAvatar";
 import { useSocketStore } from "@/stores/useSocketStore";
 
-const ChatWindowHeader = ({ chat }: { chat?: Conversation }) => {
-  const { conversations, activeConversationId, typingUsers } = useChatStore();
-  const { user } = useAuthStore();
-  const { onlineUsers } = useSocketStore();
+const NO_TYPING: TypingUser[] = [];
 
-  let otherUser;
+const ChatWindowHeader = ({ chat }: { chat: Conversation }) => {
+  const myId = useAuthStore((s) => s.user?._id);
 
-  chat = chat ?? conversations.find((c) => c._id === activeConversationId);
+  // useShallow: filter() tạo mảng mới mỗi lần, nhưng chỉ re-render khi danh sách
+  // người đang gõ của PHÒNG NÀY thực sự đổi (không phải khi phòng khác có người gõ)
+  const typingList = useChatStore(
+    useShallow((s) => (s.typingUsers[chat._id] ?? NO_TYPING).filter((u) => u.userId !== myId))
+  );
 
-  if (!chat) {
-    return (
-      <header className="md:hidden sticky top-0 z-10 flex items-center gap-2 px-4 py-2 w-full">
-        <SidebarTrigger className="-ml-1 text-foreground" />
-      </header>
-    );
-  }
+  const otherUser =
+    chat.type === "direct" ? chat.participants.find((p) => p._id !== myId) ?? null : null;
 
-  const typingList = typingUsers[chat._id]?.filter((u) => u.userId !== user?._id) ?? [];
+  // Selector boolean → chỉ re-render khi trạng thái online của người này đổi
+  const isOtherOnline = useSocketStore(
+    (s) => !!otherUser && s.onlineUsers.includes(otherUser._id)
+  );
 
-  if (chat.type === "direct") {
-    const otherUsers = chat.participants.filter((p) => p._id !== user?._id);
-    otherUser = otherUsers.length > 0 ? otherUsers[0] : null;
-
-    if (!user || !otherUser) return null;
-  }
+  if (!myId || (chat.type === "direct" && !otherUser)) return null;
 
   return (
     <header className="sticky top-0 z-10 px-4 py-3 xl:py-4 flex items-center bg-background border-b border-border/50">
@@ -57,9 +54,7 @@ const ChatWindowHeader = ({ chat }: { chat?: Conversation }) => {
                 />
                 <StatusBadge
                   status={
-                    otherUser?._id && onlineUsers.includes(otherUser._id) && otherUser?.statusVisible !== false 
-                      ? "online" 
-                      : "offline"
+                    isOtherOnline && otherUser?.statusVisible !== false ? "online" : "offline"
                   }
                 />
               </>

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Eye, EyeOff, Lock, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import { useThemeStore } from "@/stores/useThemeStore";
 import { authService } from "@/services/authService";
 
@@ -49,10 +49,7 @@ const ResetPasswordPage = () => {
       setSuccess(true);
       setTimeout(() => navigate("/signin"), 3000);
     } catch (error: unknown) {
-      const msg =
-        (error as { response?: { data?: { message?: string } } }).response?.data?.message ||
-        "Token không hợp lệ hoặc đã hết hạn!";
-      toast.error(msg);
+      toast.error(getErrorMessage(error, "Token không hợp lệ hoặc đã hết hạn!"));
     }
   };
 

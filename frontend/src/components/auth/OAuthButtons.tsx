@@ -2,9 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { oauthService } from "@/services/oauthService";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { useChatStore } from "@/stores/useChatStore";
+import { oauthSignIn } from "@/lib/session";
+import { getErrorMessage } from "@/lib/utils";
 import { useNavigate } from "react-router";
 import { isFirebaseReady } from "@/config/firebase";
 
@@ -41,56 +40,27 @@ interface OAuthButtonsProps {
 }
 
 const OAuthButtons = ({ mode = "signin" }: OAuthButtonsProps) => {
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [githubLoading, setGithubLoading] = useState(false);
-  const { setAccessToken, setUser } = useAuthStore();
-  const { fetchConversations } = useChatStore();
+  const [loadingProvider, setLoadingProvider] = useState<"google" | "github" | null>(null);
+  const googleLoading = loadingProvider === "google";
+  const githubLoading = loadingProvider === "github";
   const navigate = useNavigate();
 
   const googleEnabled = import.meta.env.VITE_GOOGLE_OAUTH_ENABLED === "true" && isFirebaseReady;
   const githubEnabled = import.meta.env.VITE_GITHUB_OAUTH_ENABLED === "true" && isFirebaseReady;
 
-  const handleGoogleLogin = async () => {
+  // Một handler cho cả hai provider (trước đây copy y hệt 2 lần)
+  const handleLogin = async (provider: "google" | "github") => {
+    const label = provider === "google" ? "Google" : "GitHub";
     try {
-      setGoogleLoading(true);
-      
-      const { accessToken, user } = await oauthService.signInWithGoogle();
-      
-      setAccessToken(accessToken);
-      setUser(user);
-      
-      await fetchConversations();
-      
+      setLoadingProvider(provider);
+      const user = await oauthSignIn(provider);
       toast.success(`Chào mừng ${user.displayName}! 🎉`);
       navigate("/");
     } catch (error: unknown) {
-      console.error("Google login error:", error);
-      const msg = (error as { response?: { data?: { message?: string } } }).response?.data?.message || (error as Error).message || "Đăng nhập Google thất bại";
-      toast.error(msg);
+      console.error(`${label} login error:`, error);
+      toast.error(getErrorMessage(error, `Đăng nhập ${label} thất bại`));
     } finally {
-      setGoogleLoading(false);
-    }
-  };
-
-  const handleGitHubLogin = async () => {
-    try {
-      setGithubLoading(true);
-      
-      const { accessToken, user } = await oauthService.signInWithGitHub();
-      
-      setAccessToken(accessToken);
-      setUser(user);
-      
-      await fetchConversations();
-      
-      toast.success(`Chào mừng ${user.displayName}! 🎉`);
-      navigate("/");
-    } catch (error: unknown) {
-      console.error("GitHub login error:", error);
-      const msg = (error as { response?: { data?: { message?: string } } }).response?.data?.message || (error as Error).message || "Đăng nhập GitHub thất bại";
-      toast.error(msg);
-    } finally {
-      setGithubLoading(false);
+      setLoadingProvider(null);
     }
   };
 
@@ -118,7 +88,7 @@ const OAuthButtons = ({ mode = "signin" }: OAuthButtonsProps) => {
           <Button
             type="button"
             variant="outline"
-            onClick={handleGoogleLogin}
+            onClick={() => handleLogin("google")}
             disabled={googleLoading || githubLoading}
             className="w-full"
           >
@@ -135,7 +105,7 @@ const OAuthButtons = ({ mode = "signin" }: OAuthButtonsProps) => {
           <Button
             type="button"
             variant="outline"
-            onClick={handleGitHubLogin}
+            onClick={() => handleLogin("github")}
             disabled={googleLoading || githubLoading}
             className="w-full"
           >

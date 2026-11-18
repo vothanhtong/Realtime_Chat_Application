@@ -12,17 +12,18 @@ interface ProfileCardProps {
 }
 
 const ProfileCard = ({ user }: ProfileCardProps) => {
-  const { onlineUsers, socket } = useSocketStore();
-  const { user: authUser } = useAuthStore();
+  const authUserId = useAuthStore((s) => s.user?._id);
+  const isMe = !!user && authUserId === user._id;
+  const isConnected = useSocketStore((s) => s.status === "connected");
+  const isInList = useSocketStore((s) => !!user && s.onlineUsers.includes(user._id));
 
   if (!user) return null;
 
-  const isMe = authUser?._id === user._id;
   const bio = user.bio || "Will code for food 💻";
   
   // A user is online if they are in the list OR if it's me and my socket is connected
   // And must also not be hidden
-  const isOnline = (onlineUsers.includes(user._id) || (isMe && socket?.connected)) && user.statusVisible !== false;
+  const isOnline = (isInList || (isMe && isConnected)) && user.statusVisible !== false;
 
   return (
     <Card className="overflow-hidden p-0 bg-gradient-to-r from-sky-500 via-blue-500 to-blue-600">

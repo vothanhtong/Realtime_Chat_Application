@@ -1,25 +1,20 @@
 import api from "@/lib/axios";
-import type { ConversationResponse, Message } from "@/types/chat";
-
-interface FetchMessageProps {
-  messages: Message[];
-  cursor?: string;
-}
+import type { Conversation, Message, MessagesPage } from "@/types/chat";
 
 const pageLimit = 50;
 
 export const chatService = {
-  async fetchConversations(): Promise<ConversationResponse> {
-    const res = await api.get("/conversations");
-    return res.data;
+  async fetchConversations(): Promise<Conversation[]> {
+    const res = await api.get<{ conversations: Conversation[] }>("/conversations");
+    return res.data.conversations;
   },
 
-  async fetchMessages(id: string, cursor?: string): Promise<FetchMessageProps> {
-    const cursorParam = cursor ? `&cursor=${encodeURIComponent(cursor)}` : "";
-    const res = await api.get(
-      `/conversations/${id}/messages?limit=${pageLimit}${cursorParam}`
-    );
-    return { messages: res.data.messages, cursor: res.data.nextCursor };
+  /** One page (chronological), newest page first; nextCursor = null when exhausted */
+  async fetchMessages(id: string, cursor?: string): Promise<MessagesPage> {
+    const res = await api.get<MessagesPage>(`/conversations/${id}/messages`, {
+      params: { limit: pageLimit, ...(cursor ? { cursor } : {}) },
+    });
+    return { messages: res.data.messages, nextCursor: res.data.nextCursor ?? null };
   },
 
   async sendDirectMessage(
@@ -27,8 +22,8 @@ export const chatService = {
     content: string = "",
     imgUrl?: string,
     conversationId?: string
-  ) {
-    const res = await api.post("/messages/direct", {
+  ): Promise<Message> {
+    const res = await api.post<{ message: Message }>("/messages/direct", {
       recipientId,
       content,
       imgUrl,
@@ -42,8 +37,8 @@ export const chatService = {
     conversationId: string,
     content: string = "",
     imgUrl?: string
-  ) {
-    const res = await api.post("/messages/group", {
+  ): Promise<Message> {
+    const res = await api.post<{ message: Message }>("/messages/group", {
       conversationId,
       content,
       imgUrl,
@@ -70,8 +65,12 @@ export const chatService = {
     type: "direct" | "group",
     name: string,
     memberIds: string[]
-  ) {
-    const res = await api.post("/conversations", { type, name, memberIds });
+  ): Promise<Conversation> {
+    const res = await api.post<{ conversation: Conversation }>("/conversations", {
+      type,
+      name,
+      memberIds,
+    });
     return res.data.conversation;
   },
 };

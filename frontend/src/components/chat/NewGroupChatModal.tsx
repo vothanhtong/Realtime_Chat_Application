@@ -1,4 +1,5 @@
-import { useFriendStore } from "@/stores/useFriendStore";
+import { useFriends } from "@/hooks/useFriends";
+import { useCreateConversation } from "@/hooks/useChatMutations";
 import { useState } from "react";
 import {
   Dialog,
@@ -16,19 +17,15 @@ import type { Friend } from "@/types/user";
 import IniviteSuggestionList from "../newGroupChat/IniviteSuggestionList";
 import SelectedUsersList from "../newGroupChat/SelectedUsersList";
 import { toast } from "sonner";
-import { useChatStore } from "@/stores/useChatStore";
 
 const NewGroupChatModal = () => {
   const [groupName, setGroupName] = useState("");
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
-  const { friends, getFriends } = useFriendStore();
   const [invitedUsers, setInvitedUsers] = useState<Friend[]>([]);
-  const { loading, createConversation } = useChatStore();
-
-  const handleGetFriends = async () => {
-    await getFriends();
-  };
+  // Chỉ fetch danh sách bạn khi dialog mở
+  const { data: friends = [] } = useFriends({ enabled: open });
+  const { mutateAsync: createConversation, isPending: loading } = useCreateConversation();
 
   const handleSelectFriend = (friend: Friend) => {
     setInvitedUsers([...invitedUsers, friend]);
@@ -42,25 +39,24 @@ const NewGroupChatModal = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     try {
       e.preventDefault();
-      if (invitedUsers.length === 0) {
-        toast.warning("Bạn phải mời ít nhất 1 thành viên vào nhóm");
+      // Khớp với backend (validateCreateConversation): nhóm cần ≥ 2 người ngoài bạn
+      if (invitedUsers.length < 2) {
+        toast.warning("Nhóm cần ít nhất 2 thành viên (ngoài bạn)");
         return;
       }
 
-      const created = await createConversation(
-        "group",
-        groupName,
-        invitedUsers.map((u) => u._id)
-      );
+      await createConversation({
+        type: "group",
+        name: groupName,
+        memberIds: invitedUsers.map((u) => u._id),
+      });
 
-      if (created) {
-        setGroupName("");
-        setSearch("");
-        setInvitedUsers([]);
-        setOpen(false);
-      }
-    } catch (error) {
-      console.error("Lỗi xảy ra khi handleSubmit trong NewGroupChatModal:", error);
+      setGroupName("");
+      setSearch("");
+      setInvitedUsers([]);
+      setOpen(false);
+    } catch {
+      // lỗi đã được toast trong useCreateConversation
     }
   };
 
@@ -78,7 +74,6 @@ const NewGroupChatModal = () => {
       <DialogTrigger asChild>
         <Button
           variant="ghost"
-          onClick={handleGetFriends}
           className="flex z-10 justify-center items-center size-5 rounded-full hover:bg-sidebar-accent transition cursor-pointer"
         >
           <Users className="size-4" />

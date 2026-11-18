@@ -7,14 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import type { User } from "@/types/user";
-import { useUserStore } from "@/stores/useUserStore";
+import { useUpdateProfile } from "@/hooks/useProfile";
 import { useEffect, useState } from "react";
 
 type Props = { userInfo: User | null };
 
 const PersonalInfoForm = ({ userInfo }: Props) => {
-  const { updateProfile } = useUserStore();
-  const [loading, setLoading] = useState(false);
+  const { mutateAsync: updateProfile, isPending: loading } = useUpdateProfile();
 
   // State cho các field có thể edit
   const [displayName, setDisplayName] = useState("");
@@ -34,12 +33,9 @@ const PersonalInfoForm = ({ userInfo }: Props) => {
 
   const handleSave = async () => {
     try {
-      setLoading(true);
       await updateProfile({ displayName, bio, phone });
     } catch {
-      // lỗi đã toast trong store
-    } finally {
-      setLoading(false);
+      // lỗi đã toast trong useUpdateProfile
     }
   };
 

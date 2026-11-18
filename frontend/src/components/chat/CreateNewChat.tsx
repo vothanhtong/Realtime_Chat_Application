@@ -1,23 +1,16 @@
 import { useState } from "react";
-import { useFriendStore } from "@/stores/useFriendStore";
 import { Card } from "../ui/card";
 import { Dialog, DialogTrigger } from "../ui/dialog";
 import { MessageCircle } from "lucide-react";
 import FriendListModal from "../createNewChat/FriendListModal";
 
 const CreateNewChat = () => {
-  const { getFriends } = useFriendStore();
   const [open, setOpen] = useState(false);
-
-  const handleGetFriends = async () => {
-    await getFriends();
-  };
 
   return (
     <div className="flex gap-2">
       <Card
         className="flex-1 p-3 glass hover:shadow-soft transition-smooth cursor-pointer group/card"
-        onClick={handleGetFriends}
       >
         <Dialog
           open={open}
@@ -34,7 +27,8 @@ const CreateNewChat = () => {
             </div>
           </DialogTrigger>
 
-          <FriendListModal onClose={() => setOpen(false)} />
+          {/* Mount khi mở → useFriends chỉ fetch lúc cần (cache dùng lại ở lần sau) */}
+          {open && <FriendListModal onClose={() => setOpen(false)} />}
         </Dialog>
       </Card>
     </div>

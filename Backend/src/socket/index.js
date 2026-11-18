@@ -1,88 +1,121 @@
 import { Server } from "socket.io";
-import http from "http";
-import express from "express";
 import { socketAuthMiddleware } from "../middlewares/socketMiddleware.js";
-import { getUserConversationsForSocketIO } from "../controllers/conversationController.js";
-import Conversation from "../models/Conversation.js";
-import { saveAndBroadcastMessage } from "../utils/messageHelper.js";
+import { messageService } from "../services/messageService.js";
+import { conversationService } from "../services/conversationService.js";
 import { presenceService } from "../services/presenceService.js";
+import { setIO, userRoom, conversationRoom } from "../realtime/emitter.js";
+import { AppError } from "../utils/AppError.js";
+import { createSocketRateLimiter } from "../utils/socketRateLimiter.js";
+import { SOCKET_RATE_LIMITS } from "../config/constants.js";
 
-const app = express();
-const server = http.createServer(app);
-
-const io = new Server(server, {
-  cors: {
-    // CLIENT_URL là list phân cách bằng dấu phẩy — phải tách thành mảng,
-    // gán nguyên chuỗi sẽ không origin nào khớp.
-    // Sau fix env.js, biến này đã có giá trị đúng lúc module load.
-    origin: process.env.CLIENT_URL?.split(",").map((u) => u.trim()).filter(Boolean),
-    credentials: true,
-  },
-  connectionStateRecovery: {
-    maxDisconnectionDuration: 2 * 60 * 1000,
-    skipMiddlewares: true,
-  },
-});
-
-// No Redis adapter — single-process in-memory mode
-
-io.use(socketAuthMiddleware);
-
-io.on("connection", async (socket) => {
-  const user = socket.user;
-  const userId = user._id.toString();
-
-  // Track presence
-  await presenceService.handleConnection(io, userId, user.statusVisible);
-
-  // Gửi danh sách online ban đầu
-  const onlineUsers = await presenceService.getOnlineUsers();
-  socket.emit("online-users", onlineUsers);
-
-  // Join tất cả conversation rooms
-  const conversationIds = await getUserConversationsForSocketIO(user._id);
-  conversationIds.forEach((id) => socket.join(id));
-
-  // Join room cá nhân để nhận direct events (new-group, v.v.)
-  socket.join(userId);
-
-  // Client tự join thêm room sau khi tạo conversation mới
-  socket.on("join-conversation", (conversationId) => {
-    getUserConversationsForSocketIO(user._id).then((ids) => {
-      if (ids.includes(conversationId)) {
-        socket.join(conversationId);
-      }
-    });
+/**
+ * Socket transport layer: authenticates sockets, manages rooms, and maps events
+ * to services. Holds no business logic of its own.
+ *
+ * @param {import('http').Server} httpServer created in server.js
+ * @returns {import('socket.io').Server}
+ */
+export const initSocket = (httpServer) => {
+  const io = new Server(httpServer, {
+    cors: {
+      // CLIENT_URL là list phân cách bằng dấu phẩy
+      origin: process.env.CLIENT_URL?.split(",").map((u) => u.trim()).filter(Boolean),
+      credentials: true,
+    },
+    connectionStateRecovery: {
+      maxDisconnectionDuration: 2 * 60 * 1000,
+      skipMiddlewares: true,
+    },
   });
 
-  socket.on("send-message", async (payload, callback) => {
-    try {
-      const { conversationId, recipientId, content, type, imgUrl } = payload;
-      const { message } = await saveAndBroadcastMessage(io, {
-        senderId: user._id,
-        conversationId,
-        recipientId,
-        content,
-        type,
-        imgUrl,
-      });
+  // No Redis adapter — single-process in-memory mode
+  io.use(socketAuthMiddleware);
+  io.on("connection", (socket) => handleConnection(socket));
 
-      if (callback) callback({ success: true, message });
+  setIO(io); // services emit through realtime/emitter
+  return io;
+};
+
+const handleConnection = async (socket) => {
+  // socket.data được khôi phục cùng connection state recovery (xem socketMiddleware)
+  const user = socket.data.user;
+  if (!user) {
+    socket.disconnect(true);
+    return;
+  }
+  const userId = user._id.toString();
+
+  // LƯU Ý: mọi socket.on(...) phải được đăng ký ĐỒNG BỘ trước bất kỳ await nào.
+  // Client nhận "connect" ngay khi middleware cho qua; event tới trước khi handler
+  // tồn tại sẽ bị bỏ rơi. Phần khởi tạo bất đồng bộ (join rooms) nằm ở cuối.
+
+  // Room cá nhân: mọi event gửi riêng cho user (new-group, presence, user-updated...)
+  socket.join(userRoom(userId));
+  presenceService.handleConnection(userId, user.statusVisible);
+
+  const typingIn = new Set(); // conversation mà socket này đang "đang soạn tin"
+  socket.on("disconnecting", () => {
+    // Rooms vẫn còn ở "disconnecting" → báo dừng typing cho mọi phòng liên quan
+    typingIn.forEach((conversationId) => {
+      socket
+        .to(conversationRoom(conversationId))
+        .emit("user-stop-typing", { conversationId, userId: user._id });
+    });
+    typingIn.clear();
+  });
+
+  // Fallback cho client: server đã tự join khi tạo phòng (emitter.joinUsersToConversation)
+  socket.on("join-conversation", async (conversationId) => {
+    try {
+      if (await conversationService.isMember(user._id, conversationId)) {
+        socket.join(conversationRoom(conversationId));
+      }
     } catch (error) {
-      console.error("Socket send-message error:", error.message);
-      if (callback) callback({ success: false, error: error.message });
+      console.error("join-conversation error:", error);
     }
   });
 
-  // Typing indicators
-  socket.on("typing", async (conversationId) => {
-    const isMember = await Conversation.exists({
-      _id: conversationId,
-      "participants.userId": user._id,
-    });
-    if (!isMember) return;
+  // Rate limiters — bộ đếm riêng cho mỗi socket, tự giải phóng khi socket đóng
+  const allowSendMessage = createSocketRateLimiter(SOCKET_RATE_LIMITS.sendMessage);
+  const allowTyping = createSocketRateLimiter(SOCKET_RATE_LIMITS.typing);
+  const allowStopTyping = createSocketRateLimiter(SOCKET_RATE_LIMITS.typing);
 
-    socket.to(conversationId).emit("user-typing", {
+  socket.on("send-message", async (payload, callback) => {
+    const reply = typeof callback === "function" ? callback : () => {};
+
+    if (!allowSendMessage()) {
+      return reply({ success: false, error: "Bạn gửi tin nhắn quá nhanh, vui lòng chậm lại" });
+    }
+    if (!payload || typeof payload !== "object") {
+      return reply({ success: false, error: "Dữ liệu không hợp lệ" });
+    }
+
+    try {
+      const { conversationId, recipientId, content, type, imgUrl } = payload;
+      // Cùng service với REST: kiểm tra bạn bè/thành viên, content, imgUrl
+      const { message } = await messageService.send(user, {
+        type,
+        conversationId,
+        recipientId,
+        content,
+        imgUrl,
+      });
+      reply({ success: true, message });
+    } catch (error) {
+      if (error instanceof AppError) return reply({ success: false, error: error.message });
+      console.error("Socket send-message error:", error);
+      reply({ success: false, error: "Lỗi hệ thống" });
+    }
+  });
+
+  // Typing — membership kiểm tra bằng room đã join, không query DB mỗi phím
+  const isMemberRoom = (conversationId) =>
+    typeof conversationId === "string" && socket.rooms.has(conversationRoom(conversationId));
+
+  socket.on("typing", (conversationId) => {
+    if (!allowTyping() || !isMemberRoom(conversationId)) return;
+    typingIn.add(conversationId);
+    socket.to(conversationRoom(conversationId)).emit("user-typing", {
       conversationId,
       userId: user._id,
       displayName: user.displayName,
@@ -90,25 +123,28 @@ io.on("connection", async (socket) => {
   });
 
   socket.on("stop-typing", (conversationId) => {
-    socket.to(conversationId).emit("user-stop-typing", {
+    if (!allowStopTyping() || !isMemberRoom(conversationId)) return;
+    typingIn.delete(conversationId);
+    socket.to(conversationRoom(conversationId)).emit("user-stop-typing", {
       conversationId,
       userId: user._id,
     });
   });
 
-  // Handle status visibility toggle
-  socket.on("toggle-status-visibility", async (visible) => {
-    await presenceService.updateVisibility(io, userId, visible);
-  });
+  // Không có listener "profile-updated" / "toggle-status-visibility": mọi thay đổi
+  // hồ sơ & chế độ ẩn danh đi qua REST → userService (cập nhật DB rồi mới phát).
 
-  // Handle profile updates broadcast
-  socket.on("profile-updated", (data) => {
-    io.emit("user-updated", data);
-  });
+  socket.on("disconnect", () => presenceService.handleDisconnect(userId));
 
-  socket.on("disconnect", async () => {
-    await presenceService.handleDisconnect(io, userId);
-  });
-});
+  // ─── Khởi tạo bất đồng bộ (sau khi đã đăng ký xong handler) ────────────────
+  try {
+    // Khi recovered, rooms đã được khôi phục sẵn — join lại là no-op
+    const conversationIds = await conversationService.getUserConversationIds(user._id);
+    conversationIds.forEach((id) => socket.join(conversationRoom(id)));
 
-export { io, app, server };
+    // Chỉ bạn bè đang online & không ẩn danh
+    socket.emit("online-users", await presenceService.getOnlineFriends(userId));
+  } catch (error) {
+    console.error("Socket init error:", error);
+  }
+};

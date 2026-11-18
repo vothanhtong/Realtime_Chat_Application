@@ -1,225 +1,39 @@
-import Conversation from "../models/Conversation.js";
-import Message from "../models/Message.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { AppError } from "../utils/AppError.js";
-import { validateCreateConversation, isValidObjectId } from "../middlewares/validate.js";
-import {
-  DEFAULT_MESSAGE_LIMIT,
-  MAX_MESSAGE_LIMIT,
-} from "../config/constants.js";
-import { formatConversation, POPULATE_CONVERSATION } from "../utils/formatting.js";
+import { conversationService } from "../services/conversationService.js";
+import { messageService } from "../services/messageService.js";
 
-// ─── Controllers ──────────────────────────────────────────────────────────────
+// HTTP concerns only. Business logic → conversationService / messageService.
 
 // POST /api/conversations
 export const createConversation = asyncHandler(async (req, res) => {
-  validateCreateConversation(req.body);
-
-  const { type, name, memberIds } = req.body;
-  const userId = req.user._id;
-
-  let conversation;
-
-  if (type === "direct") {
-    const participantId = memberIds[0];
-
-    // Reuse existing direct conversation if it exists
-    conversation = await Conversation.findOne({
-      type: "direct",
-      "participants.userId": { $all: [userId, participantId] },
-    });
-
-    if (!conversation) {
-      conversation = await Conversation.create({
-        type: "direct",
-        participants: [{ userId }, { userId: participantId }],
-        lastMessageAt: new Date(),
-      });
-    }
-  } else {
-    // group
-    conversation = await Conversation.create({
-      type: "group",
-      participants: [{ userId }, ...memberIds.map((id) => ({ userId: id }))],
-      group: { name: name.trim(), createdBy: userId },
-      lastMessageAt: new Date(),
-    });
-  }
-
-  await conversation.populate(POPULATE_CONVERSATION);
-  const formatted = formatConversation(conversation);
-
-  // Notify all participants via socket
-  const allParticipantIds =
-    type === "group"
-      ? [userId.toString(), ...memberIds]
-      : [userId.toString(), memberIds[0]];
-
-  const io = req.app.get("io");
-  allParticipantIds.forEach((id) => {
-    io.to(id.toString()).emit("new-group", formatted);
-  });
-
-  return res.status(201).json({ conversation: formatted });
+  const conversation = await conversationService.create(req.user, req.body);
+  res.status(201).json({ conversation });
 });
 
 // GET /api/conversations
 export const getConversations = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
-
-  const conversations = await Conversation.find({
-    "participants.userId": userId,
-  })
-    .sort({ lastMessageAt: -1, updatedAt: -1 })
-    .populate(POPULATE_CONVERSATION)
-    .lean();
-
-  const formatted = conversations.map(formatConversation);
-
-  return res.status(200).json({ conversations: formatted });
+  const conversations = await conversationService.listForUser(req.user._id);
+  res.status(200).json({ conversations });
 });
 
-// GET /api/conversations/:conversationId/messages
+// GET /api/conversations/:conversationId/messages?limit=&cursor=
 export const getMessages = asyncHandler(async (req, res) => {
-  const { conversationId } = req.params;
-  if (!isValidObjectId(conversationId)) {
-    throw new AppError("conversationId không hợp lệ", 400);
-  }
-
-  const userId = req.user._id;
-
-  // Verify membership (lean — only need to check existence)
-  const isMember = await Conversation.exists({
-    _id: conversationId,
-    "participants.userId": userId,
+  const result = await messageService.list(req.user._id, req.params.conversationId, {
+    limit: req.query.limit,
+    cursor: req.query.cursor,
   });
-
-  if (!isMember) {
-    throw new AppError("Bạn không có quyền xem tin nhắn này", 403);
-  }
-
-  // Sanitize pagination params
-  const rawLimit = parseInt(req.query.limit, 10);
-  const limit = Math.min(
-    Math.max(isNaN(rawLimit) ? DEFAULT_MESSAGE_LIMIT : rawLimit, 1),
-    MAX_MESSAGE_LIMIT
-  );
-
-  const query = {
-    conversationId,
-    deletedBy: { $ne: userId }, // Exclude messages deleted by this user
-  };
-
-  if (req.query.cursor) {
-    const cursorDate = new Date(req.query.cursor);
-    if (isNaN(cursorDate.getTime())) {
-      throw new AppError("cursor không hợp lệ", 400);
-    }
-    query.createdAt = { $lt: cursorDate };
-  }
-
-  // Fetch one extra to determine if there are more pages
-  let messages = await Message.find(query)
-    .sort({ createdAt: -1 })
-    .limit(limit + 1)
-    .select("conversationId senderId content imgUrl isRecalled createdAt")
-    .lean();
-
-  let nextCursor = null;
-  if (messages.length > limit) {
-    nextCursor = messages[limit - 1].createdAt.toISOString();
-    messages = messages.slice(0, limit);
-  }
-
-  // Return in chronological order
-  messages.reverse();
-
-  return res.status(200).json({ messages, nextCursor });
+  res.status(200).json(result);
 });
 
 // PATCH /api/conversations/:conversationId/seen
 export const markAsSeen = asyncHandler(async (req, res) => {
-  const { conversationId } = req.params;
-  if (!isValidObjectId(conversationId)) {
-    throw new AppError("conversationId không hợp lệ", 400);
-  }
-
-  const userId = req.user._id.toString();
-
-  const updated = await Conversation.findOneAndUpdate(
-    {
-      _id: conversationId,
-      "participants.userId": userId,
-      // Only update if the last message was sent by someone else
-      "lastMessage.senderId": { $ne: userId },
-    },
-    {
-      $addToSet: { seenBy: userId },
-      $set: { [`unreadCounts.${userId}`]: 0 },
-    },
-    { new: true }
-  );
-
-  // If null: either not a member, or user is the sender — both are fine
-  if (!updated) {
-    return res.status(200).json({ message: "Không cần mark as seen" });
-  }
-
-  const io = req.app.get("io");
-  io.to(conversationId).emit("read-message", {
-    conversationId,
-    seenBy: updated.seenBy,
-    lastMessage: updated.lastMessage,
-  });
-
-  return res.status(200).json({
-    message: "Marked as seen",
-    seenBy: updated.seenBy,
-    myUnreadCount: updated.unreadCounts?.get(userId) ?? 0,
-  });
+  const result = await conversationService.markAsSeen(req.user._id, req.params.conversationId);
+  if (!result) return res.status(200).json({ message: "Không cần mark as seen" });
+  res.status(200).json({ message: "Marked as seen", ...result });
 });
 
 // DELETE /api/conversations/:conversationId
 export const deleteConversation = asyncHandler(async (req, res) => {
-  const { conversationId } = req.params;
-  if (!isValidObjectId(conversationId)) {
-    throw new AppError("conversationId không hợp lệ", 400);
-  }
-
-  const userId = req.user._id;
-
-  const conversation = await Conversation.findOne({
-    _id: conversationId,
-    "participants.userId": userId,
-  }).lean();
-
-  if (!conversation) {
-    throw new AppError("Bạn không có quyền xóa cuộc trò chuyện này", 403);
-  }
-
-  // Delete conversation and all its messages in parallel
-  await Promise.all([
-    Conversation.deleteOne({ _id: conversationId }),
-    Message.deleteMany({ conversationId }),
-  ]);
-
-  const io = req.app.get("io");
-  io.to(conversationId).emit("conversation-deleted", { conversationId });
-
-  return res.status(200).json({ message: "Đã xóa cuộc trò chuyện thành công" });
+  await conversationService.remove(req.user._id, req.params.conversationId);
+  res.status(200).json({ message: "Đã xóa cuộc trò chuyện thành công" });
 });
-
-// ─── Internal helper (used by socket) ────────────────────────────────────────
-
-export const getUserConversationsForSocketIO = async (userId) => {
-  try {
-    const conversations = await Conversation.find(
-      { "participants.userId": userId },
-      { _id: 1 }
-    ).lean();
-    return conversations.map((c) => c._id.toString());
-  } catch (error) {
-    console.error("Lỗi khi fetch conversations cho socket:", error);
-    return [];
-  }
-};
