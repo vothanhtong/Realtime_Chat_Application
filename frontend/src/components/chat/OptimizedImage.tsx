@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Skeleton } from "../ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn, resolveAvatarUrl } from "@/lib/utils";
 import { getThumbnailUrl, getFullUrl } from "@/lib/cloudinaryUtils";
 
 interface OptimizedImageProps {
@@ -21,10 +21,12 @@ const OptimizedImage = ({
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
 
-  // Use thumbnail logic if it's a Cloudinary URL, otherwise use original
-  const isCloudinary = src.includes("res.cloudinary.com");
-  const thumbnailUrl = isCloudinary ? getThumbnailUrl(src) : src;
-  const fullUrl = isCloudinary ? getFullUrl(src) : src;
+  // Ảnh lưu local ("/uploads/...") → ghép origin backend, không thì trình duyệt
+  // tải từ origin của frontend (404). URL Cloudinary giữ nguyên.
+  const resolvedSrc = resolveAvatarUrl(src) ?? src;
+  const isCloudinary = resolvedSrc.includes("res.cloudinary.com");
+  const thumbnailUrl = isCloudinary ? getThumbnailUrl(resolvedSrc) : resolvedSrc;
+  const fullUrl = isCloudinary ? getFullUrl(resolvedSrc) : resolvedSrc;
 
   return (
     <div className={cn("relative overflow-hidden rounded-lg group", containerClassName)}>

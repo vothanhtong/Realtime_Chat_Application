@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 import { getFullUrl } from "@/lib/cloudinaryUtils";
+import { resolveAvatarUrl } from "@/lib/utils";
 import { Download, X } from "lucide-react";
 import { Button } from "../ui/button";
 
@@ -11,7 +12,9 @@ interface ImagePreviewProps {
 const ImagePreview = ({ src, onClose }: ImagePreviewProps) => {
   if (!src) return null;
 
-  const fullUrl = getFullUrl(src);
+  // "/uploads/..." (lưu local) → URL tuyệt đối trỏ về backend
+  const absoluteUrl = resolveAvatarUrl(src) ?? src;
+  const fullUrl = getFullUrl(absoluteUrl);
 
   return (
     <Dialog
@@ -26,7 +29,7 @@ const ImagePreview = ({ src, onClose }: ImagePreviewProps) => {
             size="icon"
             variant="ghost"
             className="text-white hover:bg-white/20 transition-all rounded-full"
-            onClick={() => window.open(src, "_blank")}
+            onClick={() => window.open(absoluteUrl, "_blank", "noopener,noreferrer")}
             title="Tải ảnh"
           >
             <Download className="size-5" />
