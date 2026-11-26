@@ -45,3 +45,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Dữ liệu MongoDB local (run-local.sh khi không có mongod.conf)
+.mongo-data/
