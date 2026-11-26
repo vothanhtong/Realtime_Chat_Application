@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import { AppError } from "../utils/AppError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { isTokenRevoked } from "../utils/tokenRevocation.js";
 
 /**
  * Verifies the Bearer JWT in the Authorization header.
@@ -23,11 +24,16 @@ export const protectedRoute = asyncHandler(async (req, _res, next) => {
   }
 
   const user = await User.findById(decoded.userId)
-    .select("-hashedPassword")
+    .select("-hashedPassword +passwordChangedAt")
     .lean();
 
   if (!user) throw new AppError("Người dùng không tồn tại", 404);
 
-  req.user = user;
+  const { passwordChangedAt, ...safeUser } = user;
+  if (isTokenRevoked(decoded, passwordChangedAt)) {
+    throw new AppError("Phiên đăng nhập đã bị thu hồi, vui lòng đăng nhập lại", 401);
+  }
+
+  req.user = safeUser;
   next();
 });

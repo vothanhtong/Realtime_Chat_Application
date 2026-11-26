@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { isTokenRevoked } from "../utils/tokenRevocation.js";
 
 /**
  * Socket.IO authentication middleware.
@@ -25,12 +26,17 @@ export const socketAuthMiddleware = async (socket, next) => {
     }
 
     const user = await User.findById(decoded.userId)
-      .select("-hashedPassword")
+      .select("-hashedPassword +passwordChangedAt")
       .lean();
 
     if (!user) return next(new Error("Unauthorized: user không tồn tại"));
 
-    socket.data.user = user;
+    const { passwordChangedAt, ...safeUser } = user;
+    if (isTokenRevoked(decoded, passwordChangedAt)) {
+      return next(new Error("Unauthorized: phiên đăng nhập đã bị thu hồi"));
+    }
+
+    socket.data.user = safeUser;
     next();
   } catch (error) {
     console.error("Lỗi socketAuthMiddleware:", error);

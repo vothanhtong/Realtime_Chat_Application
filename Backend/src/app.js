@@ -86,6 +86,24 @@ export const createApp = ({ rateLimit: enableRateLimit = true } = {}) => {
       })
     : (_req, _res, next) => next();
 
+  // forgot-password luôn trả 200 (chống dò email) và signup thành công cũng 200/201
+  // → authLimiter (skipSuccessfulRequests) không bao giờ đếm chúng. Limiter riêng
+  // đếm MỌI request: chặn spam email đặt lại mật khẩu & tạo tài khoản hàng loạt.
+  const strictLimiter = (windowMs, max, message) =>
+    enableRateLimit
+      ? rateLimit({ windowMs, max, message: { message }, standardHeaders: true, legacyHeaders: false })
+      : (_req, _res, next) => next();
+  const forgotPasswordLimiter = strictLimiter(
+    15 * 60 * 1000,
+    5,
+    "Bạn đã yêu cầu đặt lại mật khẩu quá nhiều lần, vui lòng thử lại sau 15 phút"
+  );
+  const signUpLimiter = strictLimiter(
+    60 * 60 * 1000,
+    10,
+    "Quá nhiều lần đăng ký từ địa chỉ này, vui lòng thử lại sau"
+  );
+
   if (enableRateLimit) {
     app.use(
       rateLimit({
@@ -125,6 +143,8 @@ export const createApp = ({ rateLimit: enableRateLimit = true } = {}) => {
   }
 
   // ─── Routes ───────────────────────────────────────────────────────────────
+  app.use("/api/auth/forgot-password", forgotPasswordLimiter);
+  app.use("/api/auth/signup", signUpLimiter);
   app.use("/api/auth", authLimiter, authRoute);
 
   // Protected routes — gắn protectedRoute từng prefix để request tới route

@@ -3,6 +3,7 @@ import { socketAuthMiddleware } from "../middlewares/socketMiddleware.js";
 import { messageService } from "../services/messageService.js";
 import { conversationService } from "../services/conversationService.js";
 import { presenceService } from "../services/presenceService.js";
+import { userService } from "../services/userService.js";
 import { setIO, userRoom, conversationRoom } from "../realtime/emitter.js";
 import { AppError } from "../utils/AppError.js";
 import { createSocketRateLimiter } from "../utils/socketRateLimiter.js";
@@ -51,7 +52,17 @@ const handleConnection = async (socket) => {
 
   // Room cá nhân: mọi event gửi riêng cho user (new-group, presence, user-updated...)
   socket.join(userRoom(userId));
-  presenceService.handleConnection(userId, user.statusVisible);
+
+  // Presence: socket mới → user vừa đọc từ DB ở middleware, đăng ký ngay (đồng bộ).
+  // Socket KHÔI PHỤC (skipMiddlewares) mang socket.data.user cũ từ lúc kết nối
+  // ban đầu — statusVisible có thể đã đổi (bật ẩn danh) → đọc lại từ DB trước,
+  // nếu không sẽ báo "online" cho bạn bè dù user đang ẩn danh.
+  let presenceRegistered = false;
+  const registerPresence = (statusVisible) => {
+    presenceRegistered = true;
+    presenceService.handleConnection(userId, statusVisible);
+  };
+  if (!socket.recovered) registerPresence(user.statusVisible);
 
   const typingIn = new Set(); // conversation mà socket này đang "đang soạn tin"
   socket.on("disconnecting", () => {
@@ -134,9 +145,28 @@ const handleConnection = async (socket) => {
   // Không có listener "profile-updated" / "toggle-status-visibility": mọi thay đổi
   // hồ sơ & chế độ ẩn danh đi qua REST → userService (cập nhật DB rồi mới phát).
 
-  socket.on("disconnect", () => presenceService.handleDisconnect(userId));
+  socket.on("disconnect", () => {
+    if (presenceRegistered) presenceService.handleDisconnect(userId);
+  });
 
   // ─── Khởi tạo bất đồng bộ (sau khi đã đăng ký xong handler) ────────────────
+  if (socket.recovered) {
+    try {
+      const fresh = await userService.getSocketProfile(userId);
+      if (!fresh) {
+        socket.disconnect(true);
+        return;
+      }
+      socket.data.user = { ...user, ...fresh };
+      // Socket có thể đã ngắt trong lúc chờ DB — khi đó không đăng ký presence
+      if (socket.connected) registerPresence(fresh.statusVisible);
+    } catch (error) {
+      console.error("Socket recovery presence error:", error);
+      // Không đọc được DB: an toàn mặc định = coi như đang ẩn danh
+      if (socket.connected) registerPresence(false);
+    }
+  }
+
   try {
     // Khi recovered, rooms đã được khôi phục sẵn — join lại là no-op
     const conversationIds = await conversationService.getUserConversationIds(user._id);

@@ -58,6 +58,15 @@ export const joinUsersToConversation = (userIds, conversationId) => {
   if (rooms.length) io.in(rooms).socketsJoin(conversationRoom(conversationId));
 };
 
+/**
+ * Force-close every socket of a user (password reset). Server-initiated
+ * disconnects are never restored by connectionStateRecovery, so the next
+ * connection must pass socketAuthMiddleware again.
+ */
+export const disconnectUserSockets = (userId) => {
+  if (io && userId) io.in(userRoom(userId.toString())).disconnectSockets(true);
+};
+
 /** Remove all sockets from a conversation room (conversation deleted) */
 export const closeConversationRoom = (conversationId) => {
   if (io) io.in(conversationRoom(conversationId)).socketsLeave(conversationRoom(conversationId));

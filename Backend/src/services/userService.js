@@ -27,6 +27,11 @@ const broadcastProfileChange = async (user, patch) => {
 };
 
 export const userService = {
+  /** Fresh public fields for a socket restored by connectionStateRecovery */
+  async getSocketProfile(userId) {
+    return User.findById(userId).select("displayName avatarUrl statusVisible").lean();
+  },
+
   /** GET /api/users/search?username= */
   async search(requesterId, rawKeyword) {
     // ?username=a&username=b → mảng; chỉ chấp nhận chuỗi

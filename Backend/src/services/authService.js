@@ -8,6 +8,7 @@ import { AppError } from "../utils/AppError.js";
 import { verifyFirebaseToken } from "../config/firebase.js";
 import { validateSignIn, validateSignUp, RESERVED_EMAIL_DOMAIN } from "../validators/index.js";
 import { ACCESS_TOKEN_TTL, REFRESH_TOKEN_TTL_MS } from "../config/constants.js";
+import { disconnectUserSockets } from "../realtime/emitter.js";
 
 /**
  * Authentication & account lifecycle. Transport-agnostic: returns tokens,
@@ -15,6 +16,8 @@ import { ACCESS_TOKEN_TTL, REFRESH_TOKEN_TTL_MS } from "../config/constants.js";
  */
 
 const RESET_TOKEN_TTL_MS = 15 * 60 * 1000;
+// Mỗi email chỉ nhận tối đa 1 thư đặt lại mật khẩu / phút (kể cả khi kẻ spam đổi IP)
+const RESET_EMAIL_COOLDOWN_MS = 60 * 1000;
 const RESET_MESSAGE =
   "Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu trong vài phút.";
 
@@ -249,6 +252,12 @@ export const authService = {
     // Luôn trả cùng thông báo để tránh dò email
     if (!user) return RESET_MESSAGE;
 
+    // Thư trước vừa gửi chưa tới 1 phút → im lặng bỏ qua (cùng thông báo, không lộ gì)
+    const lastSentAt = user.passwordResetExpires
+      ? user.passwordResetExpires.getTime() - RESET_TOKEN_TTL_MS
+      : 0;
+    if (Date.now() - lastSentAt < RESET_EMAIL_COOLDOWN_MS) return RESET_MESSAGE;
+
     const rawToken = crypto.randomBytes(32).toString("hex");
     user.passwordResetToken = sha256(rawToken);
     user.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_TTL_MS);
@@ -309,9 +318,12 @@ export const authService = {
     user.passwordResetExpires = undefined;
     // Mở được link gửi tới hộp thư = chứng minh sở hữu email → cho phép liên kết OAuth
     user.emailVerified = true;
+    user.passwordChangedAt = new Date();
     await user.save();
 
-    // Thu hồi mọi phiên cũ (vd: tài khoản từng bị tạo trước/chiếm bằng email này)
+    // Thu hồi mọi phiên cũ (vd: tài khoản từng bị tạo trước/chiếm bằng email này):
+    // refresh token (Session), access token (passwordChangedAt) và socket đang mở
     await Session.deleteMany({ userId: user._id });
+    disconnectUserSockets(user._id);
   },
 };

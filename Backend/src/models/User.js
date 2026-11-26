@@ -64,6 +64,12 @@ const userSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    // Access token (JWT) phát hành TRƯỚC thời điểm này bị từ chối — đặt khi
+    // đặt lại mật khẩu để token cũ của kẻ chiếm phiên mất hiệu lực ngay.
+    passwordChangedAt: {
+      type: Date,
+      select: false,
+    },
   },
   {
     timestamps: true,
