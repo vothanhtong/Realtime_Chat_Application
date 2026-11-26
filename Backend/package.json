@@ -10,6 +10,9 @@
     "test:watch": "vitest",
     "check": "node --check src/server.js && node -e \"import('./src/app.js').then(()=>console.log('app module graph ok'))\""
   },
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "keywords": [],
   "author": "",

@@ -110,22 +110,4 @@ export const verifyFirebaseToken = async (idToken) => {
   }
 };
 
-/**
- * Get user info from Firebase
- * @param {string} uid - Firebase user ID
- * @returns {Promise<import("firebase-admin/auth").UserRecord>} User record
- */
-export const getFirebaseUser = async (uid) => {
-  if (!firebaseApp) {
-    throw new Error("Firebase Admin not initialized");
-  }
-
-  try {
-    const userRecord = await getAuth().getUser(uid);
-    return userRecord;
-  } catch (error) {
-    throw new Error(`Failed to get Firebase user: ${error.message}`);
-  }
-};
-
-export default { initializeFirebase, verifyFirebaseToken, getFirebaseUser };
+export default { initializeFirebase, verifyFirebaseToken };

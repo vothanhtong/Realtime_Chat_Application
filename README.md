@@ -138,7 +138,7 @@ Thiếu biến bắt buộc thì server dừng ngay khi khởi động. Xem chú
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | | Gửi email quên mật khẩu. Với Gmail, dùng App Password |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | | Để trống thì ảnh lưu trên đĩa |
 | `UPLOADS_DIR` | | Thư mục lưu ảnh khi không dùng Cloudinary (mặc định `Backend/uploads`) |
-| `FIREBASE_SERVICE_ACCOUNT_BASE64` / `FIREBASE_PROJECT_ID` | | Firebase Admin cho OAuth. Có thể thay bằng file `Backend/config/firebase-service-account.json` |
+| `FIREBASE_SERVICE_ACCOUNT_BASE64` / `FIREBASE_PROJECT_ID` | | Firebase Admin cho OAuth. Local có thể dùng file `Backend/config/firebase-service-account.json` thay thế |
 | `API_DOCS_ENABLED` | | `true` / `false`: bật hoặc tắt Swagger bất kể `NODE_ENV` |
 
 ### `frontend/.env`
@@ -152,7 +152,7 @@ Mọi biến `VITE_*` đều bị nhúng vào bundle JS công khai, nên **khôn
 | `VITE_GOOGLE_OAUTH_ENABLED`, `VITE_GITHUB_OAUTH_ENABLED` | `true` / `false` (mặc định `false`): hiện nút đăng nhập Google / GitHub |
 | `VITE_FIREBASE_*` | Cấu hình Firebase web app (công khai theo thiết kế của Firebase) |
 
-> ⚠️ Không commit `.env`, file service account Firebase (`*firebase-adminsdk*.json`) và `firebase-service-account-base64.txt`. Các file này đã có trong `.gitignore`. Khi nén dự án để nộp hoặc gửi cho người khác, nhớ loại chúng ra.
+> ⚠️ Không commit `.env` và file service account Firebase (`*firebase-adminsdk*.json`, `firebase-service-account*`). Các file này đã có trong `.gitignore`. Khi nén dự án để nộp hoặc gửi cho người khác, nhớ loại chúng ra.
 
 ---
 
@@ -312,6 +312,8 @@ Realtime_Chat_Application/
 │   ├── realtime/             # Socket.IO client + handlers
 │   └── lib/, config/, types/
 ├── .github/workflows/ci.yml  # CI: test backend, lint + build frontend
+├── docs/DEPLOYMENT.md        # Hướng dẫn deploy (Render + Vercel + Atlas + Cloudinary)
+├── render.yaml               # Render Blueprint cho backend
 ├── API Design.xlsx           # Bản thiết kế API
 └── run-local.sh              # Chạy toàn bộ trên localhost
 ```
@@ -341,23 +343,12 @@ GitHub Actions (`.github/workflows/ci.yml`) chạy các lệnh trên cho mỗi p
 
 ## Triển khai
 
-Cấu hình gợi ý: backend trên **Render**, frontend trên **Vercel**, DB trên **MongoDB Atlas**, ảnh trên **Cloudinary**.
+Cấu hình gợi ý: backend trên **Render**, frontend trên **Vercel**, DB trên **MongoDB Atlas**, ảnh trên **Cloudinary**. Local và online dùng chung code, chỉ khác biến môi trường.
 
-**Backend (Render)**
-- Build: `npm install`. Start: `npm start`. Root directory: `Backend`.
-- Đặt `NODE_ENV=production`, `CLIENT_URL=<domain Vercel>`, `SERVER_URL=<domain Render>` và các biến bắt buộc.
-- Nên dùng Cloudinary vì ổ đĩa Render bị xoá mỗi lần deploy.
-- Firebase Admin: đặt `FIREBASE_SERVICE_ACCOUNT_BASE64`. Xem [RENDER_DEPLOYMENT_GUIDE.md](RENDER_DEPLOYMENT_GUIDE.md).
+- **Backend:** `render.yaml` (Render Blueprint) đã khai báo sẵn root `Backend`, build `npm ci`, start `npm start`, health check `/api/health` và Node 22.
+- **Frontend:** root `frontend` trên Vercel. `vercel.json` đã có rewrite cho SPA.
 
-**Frontend (Vercel)**
-- Root directory: `frontend`. Đặt `VITE_API_URL` và `VITE_SOCKET_URL` trỏ tới backend.
-- `vercel.json` đã cấu hình rewrite cho SPA.
-
-**OAuth**
-- Thêm domain Vercel vào *Authorized domains* của Firebase.
-- Nếu gặp lỗi, xem [GOOGLE_OAUTH_CHECKLIST.md](GOOGLE_OAUTH_CHECKLIST.md) và [FIX_GOOGLE_OAUTH.md](FIX_GOOGLE_OAUTH.md).
-
-> Render free tier ngủ sau ~15 phút không có request, nên request đầu tiên có thể mất 30–50 giây. Frontend đã đặt timeout 30 giây và tự kết nối lại socket.
+👉 Hướng dẫn từng bước, checklist sau deploy và các lỗi thường gặp: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**
 
 ---
 

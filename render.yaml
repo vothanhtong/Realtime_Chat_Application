@@ -1,0 +1,38 @@
+# Render Blueprint — backend API + Socket.IO (Dashboard → New → Blueprint → chọn repo).
+# Không ảnh hưởng tới service đã tạo thủ công. Các biến `sync: false` nhập trên Dashboard
+# (Render sẽ hỏi khi tạo) — KHÔNG ghi giá trị bí mật vào file này.
+# Hướng dẫn đầy đủ: docs/DEPLOYMENT.md
+services:
+  - type: web
+    name: realtime-chat-backend
+    runtime: node
+    rootDir: Backend
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: MONGODB_CONNECTIONSTRING   # MongoDB Atlas: mongodb+srv://...
+        sync: false
+      - key: ACCESS_TOKEN_SECRET        # chuỗi ngẫu nhiên dài
+        sync: false
+      - key: CLIENT_URL                 # https://<app>.vercel.app (nhiều origin: phân tách dấu phẩy)
+        sync: false
+      - key: SERVER_URL                 # https://<service>.onrender.com
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME      # bắt buộc trên Render: ổ đĩa bị xoá khi deploy lại
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_BASE64   # chỉ cần nếu bật đăng nhập Google/GitHub
+        sync: false
+      - key: SMTP_USER                  # chỉ cần cho "Quên mật khẩu"
+        sync: false
+      - key: SMTP_PASS
+        sync: false

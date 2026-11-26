@@ -10,6 +10,7 @@ import { connectDB } from "./libs/db.js";
 import { initSocket } from "./socket/index.js";
 import { initializeFirebase } from "./config/firebase.js";
 import { IS_PRODUCTION } from "./config/constants.js";
+import { hasCloudinary } from "./services/storageService.js";
 
 // ─── Fail fast on missing configuration ───────────────────────────────────────
 const REQUIRED_ENV = ["MONGODB_CONNECTIONSTRING", "ACCESS_TOKEN_SECRET", "CLIENT_URL"];
@@ -26,6 +27,14 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
+// Render/Railway… xoá ổ đĩa mỗi lần deploy/restart → ảnh lưu local sẽ mất
+if (IS_PRODUCTION && !hasCloudinary()) {
+  console.warn(
+    "⚠️  NODE_ENV=production nhưng chưa cấu hình Cloudinary — ảnh sẽ lưu trên đĩa và " +
+      "MẤT khi server deploy lại. Đặt CLOUDINARY_CLOUD_NAME / _API_KEY / _API_SECRET."
+  );
+}
 
 // ─── App, HTTP server, Socket.IO ──────────────────────────────────────────────
 // app.js dựng Express (test được độc lập); server.js sở hữu httpServer và truyền
